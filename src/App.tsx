@@ -1,4 +1,16 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 import {
   AnimatePresence,
   motion,
@@ -9,7 +21,6 @@ import {
 import {
   ArrowRight,
   BadgeCheck,
-  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -28,8 +39,6 @@ import {
   Package,
   Phone,
   Plus,
-  QrCode,
-  RotateCcw,
   Search,
   Settings2,
   ShieldCheck,
@@ -40,15 +49,27 @@ import {
   Truck,
   Upload,
   UserRound,
-  Wallet,
   X,
-  ZoomIn,
+  QrCode,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "./utils/cn";
 
 // --- Types ---
 
-type Page = "home" | "listing" | "product" | "cart" | "checkout" | "account" | "wholesale" | "about" | "contact" | "admin" | "returns" | "policy";
+type Page =
+  | "home"
+  | "listing"
+  | "product"
+  | "cart"
+  | "checkout"
+  | "account"
+  | "wholesale"
+  | "about"
+  | "contact"
+  | "admin"
+  | "returns"
+  | "return-policy";
 
 type Scope =
   | "All"
@@ -62,8 +83,7 @@ type Scope =
   | "Festival Collection"
   | "Wedding Collection"
   | "Cotton Collection"
-  | "Trending Collection"
-  | string;
+  | "Trending Collection";
 
 type Product = {
   id: string;
@@ -83,10 +103,13 @@ type Product = {
   rating: number;
   reviews: number;
   stock: number;
-  showOnHomepage: boolean;
-  isNewArrival: boolean;
-  isBestSeller: boolean;
-  isHidden: boolean;
+  visibility: {
+    homepage: boolean;
+    newArrivals: boolean;
+    featured: boolean;
+    bestSellers: boolean;
+    active: boolean;
+  };
 };
 
 type Banner = {
@@ -97,7 +120,43 @@ type Banner = {
   image: string;
   scope: Scope;
   placement: "hero" | "featured" | "offer" | "festival" | "cotton" | "trending" | "wholesale" | "category";
+  categoryMapping?: string;
   order: number;
+};
+
+type Order = {
+  id: string;
+  date: string;
+  customer: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  items: {
+    title: string;
+    quantity: number;
+    price: number;
+    size: string;
+    color: string;
+  }[];
+  total: number;
+  paymentMethod: "COD" | "UPI" | "Razorpay" | "Card";
+  status: "Pending" | "Confirmed" | "Shipped" | "Delivered" | "Cancelled";
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  notes: string;
+};
+
+type ReturnRequest = {
+  id: string;
+  orderId: string;
+  productTitle: string;
+  reason: string;
+  notes: string;
+  date: string;
+  status: "Pending" | "Approved" | "Rejected" | "Processed";
 };
 
 type StoreContent = {
@@ -129,10 +188,15 @@ type Filters = {
 const BRAND = "JEEV RUTHI COLLECTION";
 const STORE_TIMING = "Open Daily • 10:00 AM – 10:00 PM";
 const STORE_MAP_LINK = "https://maps.app.goo.gl/QwoTg7hgNXX9gPp96";
-const STORE_MAP_EMBED = "https://www.google.com/maps?q=No.81%2C%20Vigneshwara%20Nagar%2C%20Kundrathur%20Main%20Road%2C%20Porur%2C%20Chennai%20600116&output=embed";
+const STORE_MAP_EMBED =
+  "https://www.google.com/maps?q=No.81%2C%20Vigneshwara%20Nagar%2C%20Kundrathur%20Main%20Road%2C%20Porur%2C%20Chennai%20600116&output=embed";
 const STORE_ADDRESS = ["No.81, Vigneshwara Nagar,", "Kundrathur Main Road,", "Porur, Chennai – 600116,", "Tamil Nadu, India"];
 const CMS_KEY = "jr-collection-cms-v1";
+const ORDERS_KEY = "jr_orders_v1";
+const RETURNS_KEY = "jr_returns_v1";
+const AUTH_KEY = "jr_auth_v1";
 const ADMIN_SESSION_KEY = "jr_admin_session";
+const BUSINESS_PHONE = "919363697498";
 const UPI_ID = "sujithjai007-2@oksbi";
 
 const transition: Transition = { duration: 0.65, ease: [0.22, 1, 0.36, 1] };
@@ -142,9 +206,9 @@ const announcements = ["🚚 Free Shipping Above ₹999", "🎉 Festival Sale Li
 const socialLinks = {
   facebook: "https://facebook.com/placeholder",
   instagram: "https://www.instagram.com/yuva.priya.92351",
-  whatsapp: "https://wa.me/919363697498",
+  whatsapp: `https://wa.me/${BUSINESS_PHONE}`,
   email: "mailto:Yuvavishnu2426@gmail.com",
-  phone: "tel:+919363697498",
+  phone: `tel:+${BUSINESS_PHONE}`,
 };
 
 // --- Demo Data Generation ---
@@ -211,9 +275,24 @@ const bannerImages = [
   "https://images.pexels.com/photos/35395108/pexels-photo-35395108.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=900&w=1600",
 ];
 
+const categoryBannerImages: Record<string, string> = {
+  "Women": bannerImages[2],
+  "Kurtis": bannerImages[3],
+  "Sarees": bannerImages[6],
+  "Dresses": bannerImages[7],
+  "Tops": bannerImages[0],
+  "Salwar Sets": bannerImages[1],
+  "Kids": bannerImages[4],
+  "Kids Boys": bannerImages[4],
+  "Kids Girls": bannerImages[4],
+  "Baby": bannerImages[4],
+  "Party Wear": bannerImages[4],
+  "Ethnic Wear": bannerImages[1],
+};
+
 const promoCards = [
-  { image: girlsImages[0] },
-  { image: womenImages[8] },
+  { title: "Kids Party Edit", subtitle: "Premium festive picks", image: girlsImages[0] },
+  { title: "Wedding Sarees", subtitle: "Rich drapes & luxe tones", image: womenImages[8] },
 ];
 
 const womenCategories: Record<string, string[]> = {
@@ -241,26 +320,6 @@ const girlsCategories: Record<string, string[]> = {
 const babyCategories: Record<string, string[]> = {
   Rompers: ["Cloud Soft Romper", "Tiny Bloom Romper", "Warm Nest Romper", "Baby Comfort Romper", "Little Story Romper"],
   "Gift Sets": ["Welcome Home Gift Set", "Newborn Keepsake Set", "Gentle Days Gift Set", "Soft Touch Gift Set", "Premium Infant Gift Set"],
-};
-
-// Category Banner Mapping
-const categoryBanners: Record<string, { title: string; subtitle: string; image: string }> = {
-  "All": { title: "All Collections", subtitle: "Explore our complete premium fashion range.", image: bannerImages[2] },
-  "Women": { title: "Women's Fashion", subtitle: "Elegant ethnic and western wear for the modern woman.", image: bannerImages[0] },
-  "Kids": { title: "Kids Fashion", subtitle: "Premium party wear, ethnic looks, and daily comfort for kids.", image: bannerImages[4] },
-  "Kurtis": { title: "Premium Kurtis", subtitle: "Handpicked kurtis with modern designs and comfortable fabrics.", image: womenImages[0] },
-  "Sarees": { title: "Luxury Sarees", subtitle: "Traditional weaves, silk blends, and festive drapes.", image: womenImages[8] },
-  "Dresses": { title: "Western Dresses", subtitle: "Chic dresses for casual outings and special occasions.", image: womenImages[4] },
-  "Tops": { title: "Stylish Tops", subtitle: "Versatile tops that pair perfectly with any bottom wear.", image: womenImages[11] },
-  "Salwar Sets": { title: "Salwar Suits", subtitle: "Complete sets with matching bottoms and dupattas.", image: womenImages[2] },
-  "Shirts": { title: "Boys Shirts", subtitle: "Smart casual and formal shirts for young gentlemen.", image: boysImages[0] },
-  "T-Shirts": { title: "Kids T-Shirts", subtitle: "Comfortable, trendy tees for active kids.", image: boysImages[1] },
-  "Party Wear": { title: "Party Wear", subtitle: "Standout outfits for birthdays, festivals, and celebrations.", image: girlsImages[0] },
-  "Ethnic Wear": { title: "Ethnic Wear", subtitle: "Traditional styles for cultural events and family functions.", image: boysImages[3] },
-  "Frocks": { title: "Girls Frocks", subtitle: "Beautiful frocks for parties and daily wear.", image: girlsImages[0] },
-  "Gowns": { title: "Kids Gowns", subtitle: "Princess-style gowns for special occasions.", image: girlsImages[2] },
-  "Rompers": { title: "Baby Rompers", subtitle: "Soft, safe, and adorable rompers for infants.", image: babyImages[0] },
-  "Gift Sets": { title: "Baby Gift Sets", subtitle: "Curated gift boxes for newborns and babies.", image: babyImages[5] },
 };
 
 function buildSeedProducts(): Product[] {
@@ -319,10 +378,13 @@ function buildSeedProducts(): Product[] {
           rating: 4.6 + (index % 3) * 0.1,
           reviews: 58 + index * 21 + groupIndex * 8,
           stock: 8 + ((groupIndex + index) % 10),
-          showOnHomepage: index < 2,
-          isNewArrival: index === 1 || index === 2,
-          isBestSeller: index === 0 || index === 4,
-          isHidden: false,
+          visibility: {
+            homepage: true,
+            newArrivals: tags.includes("New Arrivals"),
+            featured: index < 2,
+            bestSellers: tags.includes("Best Sellers"),
+            active: true,
+          },
         });
       });
     });
@@ -375,6 +437,28 @@ function getStoredContent(): StoreContent {
   }
 }
 
+function getOrders(): Order[] {
+  try {
+    const raw = localStorage.getItem(ORDERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOrders(orders: Order[]) {
+  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+}
+
+function getReturns(): ReturnRequest[] {
+  try {
+    const raw = localStorage.getItem(RETURNS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 function updateMeta(page: Page, product?: Product | null) {
   const titleMap: Record<Page, string> = {
     home: `${BRAND} | Premium Fashion Ecommerce`,
@@ -387,8 +471,8 @@ function updateMeta(page: Page, product?: Product | null) {
     about: `${BRAND} | About`,
     contact: `${BRAND} | Contact`,
     admin: `Admin | ${BRAND}`,
-    returns: `${BRAND} | Returns & Refunds`,
-    policy: `${BRAND} | Policies`,
+    returns: `${BRAND} | Return Request`,
+    "return-policy": `${BRAND} | Return Policy`,
   };
   document.title = titleMap[page];
   const meta = document.querySelector('meta[name="description"]');
@@ -398,6 +482,10 @@ function updateMeta(page: Page, product?: Product | null) {
       `${BRAND} is a Chennai-based premium women, kids, family fashion, wholesale and retail ecommerce brand with modern luxury shopping experience.`,
     );
   }
+}
+
+function saveReturns(returns: ReturnRequest[]) {
+  localStorage.setItem(RETURNS_KEY, JSON.stringify(returns));
 }
 
 function fileToDataUrl(file: File) {
@@ -445,11 +533,8 @@ function MediaImage({ src, alt, className, eager = false }: { src: string; alt: 
 
 function LogoBlock({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-4">
-      <img src="/jr-logo.svg" alt={`${BRAND} logo`} className={compact ? "h-16 w-auto sm:h-20" : "h-20 w-auto sm:h-24"} />
-      <div className="min-w-0">
-        <p className="font-display text-2xl font-semibold tracking-[0.16em] text-[#1a1a1a] sm:text-3xl">{BRAND}</p>
-      </div>
+    <div className="flex items-center">
+      <img src="/jr-logo.svg" alt={`${BRAND} logo`} className={compact ? "h-20 w-auto sm:h-24" : "h-24 w-auto sm:h-32"} />
     </div>
   );
 }
@@ -467,15 +552,17 @@ function SectionHeading({ eyebrow, title, description, center = false }: { eyebr
   );
 }
 
-function PremiumButton({ children, onClick, variant = "primary", className }: { children: ReactNode; onClick?: (event: React.MouseEvent) => void; variant?: "primary" | "secondary" | "ghost"; className?: string }) {
+function PremiumButton({ children, onClick, variant = "primary", className, disabled = false }: { children: ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string; disabled?: boolean }) {
   return (
     <motion.button
       type="button"
-      whileHover={{ y: -2, scale: 1.01 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={!disabled ? { y: -2, scale: 1.01 } : {}}
+      whileTap={!disabled ? { scale: 0.98 } : {}}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition",
+        disabled && "opacity-50 cursor-not-allowed",
         variant === "primary" && "bg-gradient-to-r from-[#6B3E26] via-[#8B5E3C] to-[#C89B6D] text-white shadow-[0_18px_40px_rgba(107,62,38,0.24)]",
         variant === "secondary" && "border border-[#C89B6D]/30 bg-white text-[#6B3E26] shadow-[0_12px_30px_rgba(17,17,17,0.05)]",
         variant === "ghost" && "text-[#6B3E26] hover:bg-[#F7F1EB]",
@@ -589,20 +676,24 @@ function HeaderPromoCluster() {
     <div className="hidden items-center gap-3 xl:flex">
       {promoCards.map((card, index) => (
         <motion.div
-          key={index}
+          key={card.title}
           animate={{ y: [0, index % 2 === 0 ? -8 : 8, 0] }}
           transition={{ duration: 5 + index, repeat: Infinity, ease: "easeInOut" }}
           whileHover={{ y: -6, rotate: 1.5 }}
-          className="group overflow-hidden rounded-3xl border border-white/45 bg-white/70 p-2 shadow-[0_18px_38px_rgba(17,17,17,0.08)] backdrop-blur"
+          className="group flex h-24 w-52 items-center gap-4 overflow-hidden rounded-3xl border border-white/45 bg-white/70 p-2 shadow-[0_18px_38px_rgba(17,17,17,0.08)] backdrop-blur"
         >
-          <MediaImage src={card.image} alt={`Promo ${index + 1}`} className="h-16 w-44 rounded-2xl object-cover transition duration-500 group-hover:scale-110" />
+          <MediaImage src={card.image} alt={card.title} className="h-20 w-20 rounded-2xl object-cover transition duration-500 group-hover:scale-110" />
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold text-[#1A1A1A]">{card.title}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#8B5E3C]">{card.subtitle}</p>
+          </div>
         </motion.div>
       ))}
     </div>
   );
 }
 
-function Header({ announcement, activePage, cartCount, wishlistCount, onNavigate, onOpenScope, onOpenSearch }: { announcement: string; activePage: Page; cartCount: number; wishlistCount: number; onNavigate: (page: Page) => void; onOpenScope: (scope: Scope, category?: string) => void; onOpenSearch: () => void }) {
+function Header({ announcement, activePage, cartCount, wishlistCount, onNavigate, onOpenScope, onOpenSearch, isLoggedIn }: { announcement: string; activePage: Page; cartCount: number; wishlistCount: number; onNavigate: (page: Page) => void; onOpenScope: (scope: Scope, category?: string) => void; onOpenSearch: () => void; isLoggedIn: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSubmenu, setMobileSubmenu] = useState<Scope | null>(null);
   const [open, setOpen] = useState<Scope | null>(null);
@@ -698,7 +789,7 @@ function Header({ announcement, activePage, cartCount, wishlistCount, onNavigate
           <div className="hidden items-center gap-3 xl:flex">
             <HeaderIconButton label="Search" onClick={onOpenSearch} icon={<Search className="h-4 w-4" />} />
             <HeaderIconButton label="Wishlist" onClick={() => onNavigate("account")} icon={<Heart className="h-4 w-4" />} count={wishlistCount} />
-            <HeaderIconButton label="Account" onClick={() => onNavigate("account")} icon={<UserRound className="h-4 w-4" />} />
+            <HeaderIconButton label={isLoggedIn ? "Account" : "Login"} onClick={() => onNavigate("account")} icon={<UserRound className="h-4 w-4" />} />
             <HeaderIconButton label="Cart" onClick={() => onNavigate("cart")} icon={<ShoppingBag className="h-4 w-4" />} count={cartCount} />
           </div>
         </div>
@@ -709,9 +800,13 @@ function Header({ announcement, activePage, cartCount, wishlistCount, onNavigate
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="border-b border-[#EFE2D7] bg-white/95 px-4 py-5 backdrop-blur xl:hidden">
             <div className="mx-auto max-w-[1500px] space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                {promoCards.map((card, index) => (
-                  <div key={index} className="overflow-hidden rounded-3xl border border-[#EDE0D4] bg-[#FFF9F5]">
-                    <MediaImage src={card.image} alt={`Promo ${index + 1}`} className="h-20 w-full object-cover" />
+                {promoCards.map((card) => (
+                  <div key={card.title} className="flex items-center gap-3 rounded-3xl border border-[#EDE0D4] bg-[#FFF9F5] p-3">
+                    <MediaImage src={card.image} alt={card.title} className="h-16 w-16 rounded-2xl object-cover" />
+                    <div>
+                      <p className="text-sm font-semibold text-[#1A1A1A]">{card.title}</p>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#8B5E3C]">{card.subtitle}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -820,7 +915,6 @@ function HeroSlider({ slides, onOpenScope }: { slides: Banner[]; onOpenScope: (s
                 Premium Campaign
               </div>
               <div className="space-y-4">
-                <p className="text-xs uppercase tracking-[0.4em] text-[#E7C5A7]">{BRAND}</p>
                 <h1 className="font-display text-5xl leading-none sm:text-6xl lg:text-[6.5rem]">{slide.title}</h1>
                 <p className="max-w-xl text-sm leading-8 text-white/82 sm:text-lg">{slide.subtitle}</p>
               </div>
@@ -930,7 +1024,7 @@ function CollectionSection({ eyebrow, title, description, products, wishlist, on
 
 // --- Product Detail Page ---
 
-function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBuyNow, onWishlist, wishlisted, onOpenProduct, onRequestReturn }: { product: Product; related: Product[]; recent: Product[]; onBack: () => void; onAddToCart: (size: string, color: string, qty: number) => void; onBuyNow: (size: string, color: string, qty: number) => void; onWishlist: () => void; wishlisted: boolean; onOpenProduct: (product: Product) => void; onRequestReturn: () => void }) {
+function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBuyNow, onWishlist, wishlisted, onOpenProduct, onReturn }: { product: Product; related: Product[]; recent: Product[]; onBack: () => void; onAddToCart: (size: string, color: string, qty: number) => void; onBuyNow: (size: string, color: string, qty: number) => void; onWishlist: () => void; wishlisted: boolean; onOpenProduct: (product: Product) => void; onReturn: (orderId: string) => void }) {
   const [mainImage, setMainImage] = useState(product.gallery[0]);
   const [selectedSize, setSelectedSize] = useState(product.sizes[2] ?? product.sizes[0]);
   const [selectedColor, setSelectedColor] = useState(product.colors[0].name);
@@ -938,7 +1032,7 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
   const [tab, setTab] = useState("Description");
   const [pincode, setPincode] = useState("");
   const [message, setMessage] = useState("");
-  const [zoomOpen, setZoomOpen] = useState(false);
+  const [zoom, setZoom] = useState(false);
 
   useEffect(() => {
     setMainImage(product.gallery[0]);
@@ -955,7 +1049,7 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
     "Fabric Details": "Premium fabric finish crafted for softness, drape, and occasion-ready premium styling.",
     "Size Guide": `Available sizes: ${product.sizes.join(", ")}. Fit is optimized for fashion-forward comfort and premium finish.`,
     "Delivery Information": "Tamil Nadu: 2–4 Business Days • South India: 3–6 Business Days • Rest Of India: 5–8 Business Days • Free shipping above ₹999.",
-    "Return Policy": "7 day easy returns for unused products with original tags and original packaging. Return requests can be submitted from your account dashboard.",
+    "Return Policy": "7 day easy returns for unused products with original tags and original packaging.",
     Reviews: `${product.reviews}+ customers rated this style ${product.rating.toFixed(1)} stars for quality, styling, and premium presentation.`,
   };
 
@@ -973,15 +1067,13 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
                   </button>
                 ))}
               </div>
-              <div className="order-1 overflow-hidden rounded-[36px] bg-[#F5ECE4] shadow-[0_28px_80px_rgba(17,17,17,0.08)] md:order-2 relative group cursor-zoom-in" onClick={() => setZoomOpen(true)}>
+              <div className="order-1 relative overflow-hidden rounded-[36px] bg-[#F5ECE4] shadow-[0_28px_80px_rgba(17,17,17,0.08)] md:order-2 cursor-zoom-in" onClick={() => setZoom(true)}>
                 <AnimatePresence mode="wait">
-                  <motion.div key={mainImage} initial={{ opacity: 0.2, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.2, scale: 0.99 }} transition={{ duration: 0.35 }} className="relative">
-                    <MediaImage src={mainImage} alt={product.title} eager className="aspect-[4/5] h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition">
-                      <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition drop-shadow-lg" />
-                    </div>
+                  <motion.div key={mainImage} initial={{ opacity: 0.2, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.2, scale: 0.99 }} transition={{ duration: 0.35 }}>
+                    <MediaImage src={mainImage} alt={product.title} eager className="aspect-[4/5] h-full w-full object-cover" />
                   </motion.div>
                 </AnimatePresence>
+                <div className="absolute bottom-4 right-4 rounded-full bg-white/90 p-2 text-[#6B3E26]"><Search className="h-5 w-5" /></div>
               </div>
             </div>
           </Reveal>
@@ -1038,11 +1130,10 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
                 </div>
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-3">
               <MiniInfoCard icon={<Truck className="h-5 w-5" />} title="Shipping" copy="Fast delivery across India" />
               <MiniInfoCard icon={<ShieldCheck className="h-5 w-5" />} title="Returns" copy="7 day easy returns" />
               <MiniInfoCard icon={<Lock className="h-5 w-5" />} title="Security" copy="Secure checkout & OTP login" />
-              <MiniInfoCard icon={<RotateCcw className="h-5 w-5" />} title="Exchange" copy="Easy exchange available" />
             </div>
             <div className="rounded-[32px] border border-[#EDE0D4] bg-white p-6 shadow-[0_18px_44px_rgba(17,17,17,0.04)]">
               <p className="mb-3 text-sm font-semibold text-[#1A1A1A]">Pincode Availability Checker</p>
@@ -1052,9 +1143,9 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
               </div>
               {message && <p className="mt-3 text-sm text-[#5F4B3D]">{message}</p>}
             </div>
-            <div className="flex justify-center">
-              <PremiumButton variant="ghost" onClick={onRequestReturn}><RotateCcw className="h-4 w-4" /> Request Return / Exchange</PremiumButton>
-            </div>
+            <button type="button" onClick={() => onReturn("Demo-Order-123")} className="flex items-center gap-2 rounded-full border border-[#E7D9CD] bg-white px-6 py-3 text-sm font-semibold text-[#6B3E26] hover:bg-[#FFF9F5]">
+              <RefreshCw className="h-4 w-4" /> Return / Replace Product
+            </button>
           </Reveal>
         </div>
         <div className="space-y-6">
@@ -1068,15 +1159,12 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
         <RelatedRow title="Related Products" products={related} onOpenProduct={onOpenProduct} />
         <RelatedRow title="Recently Viewed" products={recent} onOpenProduct={onOpenProduct} />
       </div>
-
-      <AnimatePresence>
-        {zoomOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/90 flex items-center justify-center p-4" onClick={() => setZoomOpen(false)}>
-            <motion.img src={mainImage} alt={product.title} initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="max-h-[90vh] max-w-full object-contain rounded-lg" />
-            <button type="button" onClick={() => setZoomOpen(false)} className="absolute top-6 right-6 text-white"><X className="h-8 w-8" /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {zoom && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4" onClick={() => setZoom(false)}>
+          <button type="button" onClick={() => setZoom(false)} className="absolute right-4 top-4 text-white"><X className="h-8 w-8" /></button>
+          <img src={mainImage} alt={product.title} className="max-h-[90vh] max-w-full object-contain" />
+        </div>
+      )}
     </section>
   );
 }
@@ -1110,24 +1198,22 @@ function ListingPage({ filters, setFilters, products, allProducts, wishlist, onO
   const categories = ["All", ...Array.from(new Set(allProducts.map((product) => product.category)))];
   const sizes = ["All", ...Array.from(new Set(allProducts.flatMap((product) => product.sizes)))];
   const colors = ["All", ...Array.from(new Set(allProducts.flatMap((product) => product.colors.map((item) => item.name))))];
-
-  const currentBanner = categoryBanners[filters.category] || categoryBanners[filters.scope] || categoryBanners["All"];
+  
+  const banner = categoryBannerImages[filters.scope] || categoryBannerImages[filters.category] || bannerImages[2];
 
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
         <Reveal>
           <div className="overflow-hidden rounded-[38px] bg-[#26170F] text-white shadow-[0_28px_80px_rgba(17,17,17,0.16)]">
-            <AnimatePresence mode="wait">
-              <motion.div key={currentBanner.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-                <div className="p-8 sm:p-10 lg:p-12">
-                  <p className="text-xs uppercase tracking-[0.34em] text-[#E7C5A7]">Category Page</p>
-                  <h1 className="mt-4 font-display text-5xl leading-none sm:text-6xl">{currentBanner.title}</h1>
-                  <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">{currentBanner.subtitle}</p>
-                </div>
-                <div className="relative min-h-[280px]"><MediaImage src={currentBanner.image} alt={currentBanner.title} className="h-full w-full object-cover" /></div>
-              </motion.div>
-            </AnimatePresence>
+            <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+              <div className="p-8 sm:p-10 lg:p-12">
+                <p className="text-xs uppercase tracking-[0.34em] text-[#E7C5A7]">Category Page</p>
+                <h1 className="mt-4 font-display text-5xl leading-none sm:text-6xl">{filters.scope}</h1>
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">Wider, cleaner collection browsing with accurate filters and premium product visibility.</p>
+              </div>
+              <div className="relative min-h-[280px]"><MediaImage src={banner} alt="Category banner" className="h-full w-full object-cover" /></div>
+            </div>
           </div>
         </Reveal>
         <div className="flex items-center justify-between gap-4 lg:hidden">
@@ -1279,9 +1365,7 @@ function CartPage({ items, coupon, setCoupon, discount, subtotal, shipping, tota
 
 // --- Checkout Page ---
 
-function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, onRequireLogin, onPay }: { isLoggedIn: boolean; items: Array<CartItem & { product: Product }>; subtotal: number; discount: number; shipping: number; total: number; onRequireLogin: () => void; onPay: () => void }) {
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "razorpay" | "cod">("upi");
-
+function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, onRequireLogin, onPay, customer }: { isLoggedIn: boolean; items: Array<CartItem & { product: Product }>; subtotal: number; discount: number; shipping: number; total: number; onRequireLogin: () => void; onPay: (method: Order["paymentMethod"]) => void; customer: { name: string; phone: string; email: string; address: string; city: string; state: string; pincode: string; notes: string } }) {
   if (!isLoggedIn) {
     return (
       <section className="px-4 py-10 sm:py-14">
@@ -1294,29 +1378,22 @@ function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, 
       </section>
     );
   }
-
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
-        <SectionHeading eyebrow="Checkout" title="Secure, responsive, mobile-first checkout" description="Guest browsing is open, but secure checkout is protected with login and premium payment presentation." />
+        <SectionHeading eyebrow="Checkout" title="Secure, responsive, mobile-first checkout" description="Complete your order with secure payment, saved addresses, and premium payment presentation." />
         <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-5">
             <div className="luxury-card rounded-[30px] p-6">
-              <h3 className="font-display text-3xl text-[#1A1A1A]">Saved Addresses</h3>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                {["Home • Porur, Chennai", "Office • Kundrathur Main Road"].map((address) => (
-                  <div key={address} className="rounded-[24px] border border-[#EDE0D4] bg-[#FFF9F5] p-4">
-                    <p className="font-semibold text-[#1A1A1A]">{address}</p>
-                    <p className="mt-2 text-sm leading-6 text-[#5F4B3D]">Responsive address card for premium delivery management.</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="luxury-card rounded-[30px] p-6">
-              <h3 className="font-display text-3xl text-[#1A1A1A]">New Address</h3>
+              <h3 className="font-display text-3xl text-[#1A1A1A]">Delivery Details</h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {["Full Name", "Phone Number", "Email Address", "Pincode", "City", "State"].map((field) => (<input key={field} placeholder={field} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />))}
-                <textarea placeholder="Full Address" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input defaultValue={customer.name} placeholder="Full Name" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input defaultValue={customer.phone} placeholder="Phone Number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input defaultValue={customer.email} placeholder="Email Address" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <textarea defaultValue={customer.address} placeholder="Full Address" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input defaultValue={customer.city} placeholder="City" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input defaultValue={customer.state} placeholder="State" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input defaultValue={customer.pincode} placeholder="Pincode" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
               </div>
             </div>
             <div className="luxury-card rounded-[30px] p-6">
@@ -1351,48 +1428,24 @@ function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, 
               </div>
             </div>
             <div className="luxury-card rounded-[30px] p-6">
-              <h3 className="font-display text-3xl text-[#1A1A1A] mb-6">Select Payment Method</h3>
-              <div className="space-y-3 mb-6">
-                {[
-                  { id: "upi", label: "UPI Payment", icon: <Wallet className="h-5 w-5" />, desc: "Pay using GPay, PhonePe, Paytm, or any UPI app" },
-                  { id: "razorpay", label: "Razorpay Checkout", icon: <CreditCard className="h-5 w-5" />, desc: "Cards, Net Banking, Wallets, and UPI via Razorpay" },
-                  { id: "cod", label: "Cash On Delivery", icon: <ShoppingBag className="h-5 w-5" />, desc: "Pay when your order arrives at your doorstep" },
-                ].map((method) => (
-                  <button key={method.id} type="button" onClick={() => setPaymentMethod(method.id as any)} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl border transition", paymentMethod === method.id ? "border-[#6B3E26] bg-[#FFF4EA]" : "border-[#EDE0D4] bg-[#FFF9F5]")}>
-                    <div className={cn("p-2 rounded-full", paymentMethod === method.id ? "bg-[#6B3E26] text-white" : "bg-[#FFF0E5] text-[#6B3E26]")}>{method.icon}</div>
-                    <div className="text-left">
-                      <p className="font-semibold text-[#1A1A1A]">{method.label}</p>
-                      <p className="text-xs text-[#6D5A4B]">{method.desc}</p>
-                    </div>
-                    {paymentMethod === method.id && <CheckCircle2 className="h-5 w-5 text-[#6B3E26] ml-auto" />}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-[#6B3E26] p-3 text-white"><CreditCard className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.26em] text-[#8B5E3C]">Payment Methods</p>
+                  <h3 className="font-display text-3xl text-[#1A1A1A]">Secure premium checkout</h3>
+                </div>
               </div>
-
-              {paymentMethod === "upi" && (
-                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-xl shadow mb-4">
-                    <QrCode className="h-10 w-10 text-[#6B3E26]" />
-                  </div>
-                  <p className="text-sm font-semibold text-[#1A1A1A] mb-2">Scan QR or Pay via UPI</p>
-                  <p className="text-xs text-[#6D5A4B] mb-4">UPI ID: {UPI_ID}</p>
-                  <a href={`upi://pay?pa=${UPI_ID}&pn=JEEV%20RUTHI%20COLLECTION&am=${total}&cu=INR`} className="inline-block bg-[#6B3E26] text-white px-6 py-3 rounded-full font-semibold text-sm">Pay {formatCurrency(total)}</a>
-                </div>
-              )}
-
-              {paymentMethod === "razorpay" && (
-                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
-                  <p className="text-sm text-[#6D5A4B] mb-4">Secure payment powered by Razorpay. Supports UPI, Cards, Net Banking, and Wallets.</p>
-                  <PremiumButton onClick={onPay}>Pay with Razorpay</PremiumButton>
-                </div>
-              )}
-
-              {paymentMethod === "cod" && (
-                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
-                  <p className="text-sm text-[#6D5A4B] mb-4">Cash on delivery available. Additional charges may apply.</p>
-                  <PremiumButton onClick={onPay}>Confirm COD Order</PremiumButton>
-                </div>
-              )}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => onPay("COD")} className="rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-4 text-left transition hover:border-[#C89B6D]">
+                  <div className="flex items-center gap-3 text-[#5F4B3D]"><ShoppingBag className="h-5 w-5 text-[#6B3E26]" /><span className="text-sm font-medium">Cash On Delivery</span></div>
+                </button>
+                <button type="button" onClick={() => onPay("UPI")} className="rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-4 text-left transition hover:border-[#C89B6D]">
+                  <div className="flex items-center gap-3 text-[#5F4B3D]"><QrCode className="h-5 w-5 text-[#6B3E26]" /><span className="text-sm font-medium">UPI / Wallets</span></div>
+                </button>
+                <button type="button" onClick={() => onPay("Razorpay")} className="rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-4 text-left transition hover:border-[#C89B6D]">
+                  <div className="flex items-center gap-3 text-[#5F4B3D]"><CreditCard className="h-5 w-5 text-[#6B3E26]" /><span className="text-sm font-medium">Cards / Net Banking</span></div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1403,7 +1456,12 @@ function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, 
 
 // --- Account Page ---
 
-function AccountPage({ isLoggedIn, onLogin, wishlist, recentOrders, onOpenProduct }: { isLoggedIn: boolean; onLogin: () => void; wishlist: Product[]; recentOrders: Array<CartItem & { product: Product }>; onOpenProduct: (product: Product) => void }) {
+function AccountPage({ isLoggedIn, onLogin, wishlist, recentOrders, onOpenProduct }: { isLoggedIn: boolean; onLogin: (method: "Mobile OTP" | "Google" | "Email") => void; wishlist: Product[]; recentOrders: Array<CartItem & { product: Product }>; onOpenProduct: (product: Product) => void }) {
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   if (!isLoggedIn) {
     return (
       <section className="px-4 py-10 sm:py-14">
@@ -1418,10 +1476,23 @@ function AccountPage({ isLoggedIn, onLogin, wishlist, recentOrders, onOpenProduc
             <p className="text-xs uppercase tracking-[0.28em] text-[#8B5E3C]">Member Access</p>
             <h2 className="mt-3 font-display text-5xl text-[#1A1A1A]">Sign in</h2>
             <div className="mt-8 grid gap-4">
-              <input placeholder="Mobile number or email" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-              <PremiumButton onClick={onLogin}>Continue With Mobile OTP</PremiumButton>
-              <PremiumButton variant="secondary" onClick={onLogin}>Continue With Google</PremiumButton>
-              <PremiumButton variant="secondary" onClick={onLogin}>Continue With Email</PremiumButton>
+              {!otpSent ? (
+                <>
+                  <input placeholder="Mobile number (10 digits)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                  <PremiumButton onClick={() => setOtpSent(true)}>Send OTP</PremiumButton>
+                  <div className="my-2 flex items-center gap-3"><div className="h-px flex-1 bg-[#EDE0D4]" /><p className="text-xs text-[#A49184]">OR</p><div className="h-px flex-1 bg-[#EDE0D4]" /></div>
+                  <PremiumButton variant="secondary" onClick={() => onLogin("Google")}>Continue With Google</PremiumButton>
+                  <input placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                  <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                  <PremiumButton variant="secondary" onClick={() => onLogin("Email")}>Sign In with Email</PremiumButton>
+                </>
+              ) : (
+                <>
+                  <input placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                  <PremiumButton onClick={() => onLogin("Mobile OTP")}>Verify & Login</PremiumButton>
+                  <button type="button" onClick={() => setOtpSent(false)} className="text-sm text-[#8B5E3C]">Change Mobile Number</button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1594,76 +1665,93 @@ function ContactPage() {
   );
 }
 
-// --- Returns Page ---
+function ReturnPolicyPage() {
+  return (
+    <section className="px-4 py-10 sm:py-14">
+      <div className="mx-auto max-w-[1000px] space-y-8">
+        <SectionHeading eyebrow="Policy" title="Returns & Refund Policy" description="We want you to love your JEEV RUTHI COLLECTION purchase. If you're not satisfied, we're here to help." center />
+        <div className="space-y-6">
+          <div className="luxury-card rounded-[30px] p-6">
+            <h3 className="font-display text-3xl text-[#1A1A1A]">7-Day Easy Returns</h3>
+            <p className="mt-3 text-sm leading-7 text-[#5F4B3D]">
+              You can return any unused product within 7 days of delivery. The item must be in its original packaging with all tags attached.
+              Refunds will be processed to the original payment method within 5-7 business days after we receive the returned item.
+            </p>
+          </div>
+          <div className="luxury-card rounded-[30px] p-6">
+            <h3 className="font-display text-3xl text-[#1A1A1A]">How to Return</h3>
+            <ol className="mt-3 list-inside space-y-2 text-sm text-[#5F4B3D]">
+              <li>Go to <strong>My Orders</strong> in your account dashboard.</li>
+              <li>Select the item you want to return and click <strong>Return Product</strong>.</li>
+              <li>Choose a reason and upload images if applicable.</li>
+              <li>Schedule a pickup or ship the item back to our Chennai address.</li>
+            </ol>
+          </div>
+          <div className="luxury-card rounded-[30px] p-6">
+            <h3 className="font-display text-3xl text-[#1A1A1A]">Non-Returnable Items</h3>
+            <p className="mt-3 text-sm leading-7 text-[#5F4B3D]">
+              For hygiene reasons, innerwear, babywear, and customized orders are not eligible for return unless damaged or incorrect.
+              Sale items are final sale unless defective.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
-function ReturnsPage({ onRequestReturn }: { onRequestReturn: (data: any) => void }) {
-  const [formData, setFormData] = useState({ orderId: "", reason: "", notes: "" });
-  const [submitted, setSubmitted] = useState(false);
+function ReturnRequestPage({ onSubmit }: { onSubmit: (req: ReturnRequest) => void }) {
+  const [orderId, setOrderId] = useState("");
+  const [productTitle, setProductTitle] = useState("");
+  const [reason, setReason] = useState("Wrong Size");
+  const [notes, setNotes] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onRequestReturn(formData);
-    setSubmitted(true);
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    onSubmit({
+      id: `RET-${Date.now()}`,
+      orderId,
+      productTitle,
+      reason,
+      notes,
+      date: new Date().toISOString().split("T")[0],
+      status: "Pending",
+    });
   };
 
   return (
     <section className="px-4 py-10 sm:py-14">
-      <div className="mx-auto max-w-4xl space-y-10">
-        <SectionHeading eyebrow="Returns & Refunds" title="Easy Return Process" description="We want you to love your purchase. If you're not satisfied, you can return your product within 7 days." center />
-        
-        {!submitted ? (
-          <div className="luxury-card rounded-[32px] p-6 sm:p-8">
-            <h3 className="font-display text-3xl text-[#1A1A1A] mb-6">Submit Return Request</h3>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Order ID</label>
-                <input required value={formData.orderId} onChange={(e) => setFormData({...formData, orderId: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]" placeholder="Enter your order ID" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Return Reason</label>
-                <select required value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]">
-                  <option value="">Select a reason</option>
-                  <option value="Wrong Size">Wrong Size</option>
-                  <option value="Damaged Product">Damaged Product</option>
-                  <option value="Wrong Product Received">Wrong Product Received</option>
-                  <option value="Quality Issue">Quality Issue</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Additional Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D] min-h-32" placeholder="Please provide any additional details..." />
-              </div>
-              <div className="flex gap-3">
-                <PremiumButton onClick={handleSubmit}>Submit Request</PremiumButton>
-                <PremiumButton variant="secondary" onClick={() => window.history.back()}>Cancel</PremiumButton>
-              </div>
-            </form>
+      <div className="mx-auto max-w-[800px] space-y-8">
+        <SectionHeading eyebrow="Returns" title="Request a Return" description="Please fill in the details below to start your return process." center />
+        <form onSubmit={handleSubmit} className="luxury-card rounded-[30px] p-6 sm:p-8">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Order ID</label>
+              <input required value={orderId} onChange={(e) => setOrderId(e.target.value)} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none" placeholder="e.g., ORD-12345" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Product Name</label>
+              <input required value={productTitle} onChange={(e) => setProductTitle(e.target.value)} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none" placeholder="Product Title" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Return Reason</label>
+              <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none">
+                <option>Wrong Size</option>
+                <option>Damaged Product</option>
+                <option>Wrong Product Received</option>
+                <option>Quality Issue</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Additional Notes</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none" rows={4} />
+            </div>
           </div>
-        ) : (
-          <div className="luxury-card rounded-[32px] p-10 text-center">
-            <CheckCircle2 className="h-16 w-16 text-[#6B3E26] mx-auto mb-4" />
-            <h3 className="font-display text-3xl text-[#1A1A1A] mb-2">Request Submitted</h3>
-            <p className="text-[#5F4B3D] mb-6">Your return request has been received. Our team will review it and contact you shortly.</p>
-            <PremiumButton onClick={() => window.history.back()}>Back to Home</PremiumButton>
+          <div className="mt-6 flex justify-end">
+            <PremiumButton>Submit Return Request</PremiumButton>
           </div>
-        )}
-
-        <div className="space-y-6">
-          <h3 className="font-display text-3xl text-[#1A1A1A]">Return Policy Details</h3>
-          <div className="luxury-card rounded-[26px] p-6">
-            <h4 className="font-semibold text-[#1A1A1A] mb-2">7-Day Easy Returns</h4>
-            <p className="text-sm text-[#5F4B3D]">You can return any product within 7 days of delivery. The product must be unused, with original tags and packaging.</p>
-          </div>
-          <div className="luxury-card rounded-[26px] p-6">
-            <h4 className="font-semibold text-[#1A1A1A] mb-2">Refund Process</h4>
-            <p className="text-sm text-[#5F4B3D]">Refunds are processed within 5-7 business days after the returned product is received and inspected. The amount will be credited to your original payment method.</p>
-          </div>
-          <div className="luxury-card rounded-[26px] p-6">
-            <h4 className="font-semibold text-[#1A1A1A] mb-2">Exchange Policy</h4>
-            <p className="text-sm text-[#5F4B3D]">We offer size exchanges for all products. If the desired size is unavailable, a full refund will be issued.</p>
-          </div>
-        </div>
+        </form>
       </div>
     </section>
   );
@@ -1678,6 +1766,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    // Fixed Admin Login: Consistent check
     if (username === "admin" && password === "admin123") {
       onLogin();
     } else {
@@ -1713,11 +1802,8 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-function AdminDashboard({ content, setContent, onLogout }: { content: StoreContent; setContent: React.Dispatch<React.SetStateAction<StoreContent>>; onLogout: () => void }) {
-  const [tab, setTab] = useState<"products" | "banners">("products");
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
+function AdminDashboard({ content, setContent, onLogout, orders, returns }: { content: StoreContent; setContent: React.Dispatch<React.SetStateAction<StoreContent>>; onLogout: () => void; orders: Order[]; returns: ReturnRequest[] }) {
+  const [tab, setTab] = useState<"products" | "banners" | "orders" | "returns">("products");
   const blankProduct: Product = {
     id: `product-${Date.now()}`,
     title: "",
@@ -1736,10 +1822,13 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
     rating: 4.8,
     reviews: 120,
     stock: 10,
-    showOnHomepage: false,
-    isNewArrival: false,
-    isBestSeller: false,
-    isHidden: false,
+    visibility: {
+      homepage: true,
+      newArrivals: true,
+      featured: true,
+      bestSellers: true,
+      active: true,
+    },
   };
   const blankBanner: Banner = {
     id: `banner-${Date.now()}`,
@@ -1754,30 +1843,6 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
 
   const [productForm, setProductForm] = useState<Product>(blankProduct);
   const [bannerForm, setBannerForm] = useState<Banner>(blankBanner);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
-  const handleSaveProduct = () => {
-    setContent((current) => {
-      const exists = current.products.some((p) => p.id === productForm.id);
-      const next = exists ? current.products.map((p) => p.id === productForm.id ? productForm : p) : [productForm, ...current.products];
-      return { ...current, products: next };
-    });
-    setToast("Product saved successfully!");
-  };
-
-  const handleDeleteProduct = () => {
-    if (deleteConfirm) {
-      setContent((current) => ({ ...current, products: current.products.filter((p) => p.id !== deleteConfirm) }));
-      setDeleteConfirm(null);
-      setToast("Product deleted successfully!");
-    }
-  };
 
   const productImageUpload = async (file: File, index: number) => {
     const dataUrl = await fileToDataUrl(file);
@@ -1796,23 +1861,21 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="fixed top-4 right-4 z-[150] bg-[#6B3E26] text-white px-6 py-3 rounded-full shadow-lg">
-            {toast}
-          </motion.div>
-        )}
-
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-[#8B5E3C]">Admin Dashboard</p>
             <h1 className="font-display text-4xl text-[#1A1A1A]">Content Management System</h1>
           </div>
-          <PremiumButton variant="secondary" onClick={onLogout}>Logout</PremiumButton>
+          <div className="flex gap-3">
+            <PremiumButton variant="secondary" onClick={onLogout}>Logout</PremiumButton>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
           <PremiumButton variant={tab === "products" ? "primary" : "secondary"} onClick={() => setTab("products")}>Products</PremiumButton>
           <PremiumButton variant={tab === "banners" ? "primary" : "secondary"} onClick={() => setTab("banners")}>Banners</PremiumButton>
+          <PremiumButton variant={tab === "orders" ? "primary" : "secondary"} onClick={() => setTab("orders")}>Orders ({orders.length})</PremiumButton>
+          <PremiumButton variant={tab === "returns" ? "primary" : "secondary"} onClick={() => setTab("returns")}>Returns ({returns.length})</PremiumButton>
           <PremiumButton variant="secondary" onClick={() => setContent(seedContent)}>Reset Demo Content</PremiumButton>
         </div>
 
@@ -1821,14 +1884,13 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><Package className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Product List</p><h3 className="font-display text-3xl text-[#1A1A1A]">All Products</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Manage Products</p><h3 className="font-display text-3xl text-[#1A1A1A]">Product List</h3></div>
               </div>
               <div className="max-h-[780px] space-y-3 overflow-auto pr-1">
                 {content.products.map((product) => (
-                  <button type="button" key={product.id} onClick={() => setProductForm(product)} className="flex w-full items-center gap-4 rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-3 text-left hover:border-[#C89B6D]/50">
+                  <button type="button" key={product.id} onClick={() => setProductForm(product)} className="flex w-full items-center gap-4 rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-3 text-left">
                     <MediaImage src={product.gallery[0]} alt={product.title} className="h-16 w-16 rounded-2xl object-cover" />
                     <div className="min-w-0 flex-1"><p className="truncate font-semibold text-[#1A1A1A]">{product.title}</p><p className="text-sm text-[#6D5A4B]">{product.department} • {product.category}</p></div>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(product.id); }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><X className="h-4 w-4" /></button>
                   </button>
                 ))}
               </div>
@@ -1837,37 +1899,18 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><Settings2 className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Product Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Edit Product Details</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Product CMS Form</h3></div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <input value={productForm.title} onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))} placeholder="Product Name (Required)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Department</p>
-                  <select value={productForm.department} onChange={(event) => setProductForm((current) => ({ ...current, department: event.target.value as Product["department"] }))} className="w-full rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none">
-                    <option>Women</option><option>Kids Boys</option><option>Kids Girls</option><option>Baby</option>
-                  </select>
-                </div>
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Category (Auto-maps to sections)</p>
-                  <input value={productForm.category} onChange={(event) => setProductForm((current) => ({ ...current, category: event.target.value }))} placeholder="e.g., Kurtis, Sarees, Shirts" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Actual Price (₹)</p>
-                  <input value={productForm.price} onChange={(event) => setProductForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Offer Price (₹)</p>
-                  <input value={productForm.comparePrice} onChange={(event) => setProductForm((current) => ({ ...current, comparePrice: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Stock Quantity</p>
-                  <input value={productForm.stock} onChange={(event) => setProductForm((current) => ({ ...current, stock: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#8B5E3C] mb-1">Sizes (comma separated)</p>
-                  <input value={productForm.sizes.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, sizes: event.target.value.split(",").map(s => s.trim()).filter(Boolean) }))} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                </div>
-                <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} placeholder="Product Description" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input value={productForm.title} onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))} placeholder="Product Title" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <select value={productForm.department} onChange={(event) => setProductForm((current) => ({ ...current, department: event.target.value as Product["department"] }))} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none">
+                  <option>Women</option><option>Kids Boys</option><option>Kids Girls</option><option>Baby</option>
+                </select>
+                <input value={productForm.category} onChange={(event) => setProductForm((current) => ({ ...current, category: event.target.value }))} placeholder="Category" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input value={String(productForm.price)} onChange={(event) => setProductForm((current) => ({ ...current, price: Number(event.target.value) }))} placeholder="Offer Price" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input value={String(productForm.comparePrice)} onChange={(event) => setProductForm((current) => ({ ...current, comparePrice: Number(event.target.value) }))} placeholder="Original Price" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <input value={String(productForm.stock)} onChange={(event) => setProductForm((current) => ({ ...current, stock: Number(event.target.value) }))} placeholder="Stock Quantity" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
                 {productForm.gallery.map((image, index) => (
                   <div key={`${image}-${index}`} className="space-y-3 sm:col-span-2">
                     <input value={image} onChange={(event) => setProductForm((current) => { const g = [...current.gallery]; g[index] = event.target.value; return { ...current, gallery: g }; })} placeholder={`Image ${index + 1} URL`} className="w-full rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
@@ -1877,31 +1920,25 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
                     </label>
                   </div>
                 ))}
-                <div className="sm:col-span-2 space-y-4 border-t border-[#EDE0D4] pt-4 mt-2">
-                  <p className="text-sm font-semibold text-[#1A1A1A]">Visibility Settings</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
-                      <input type="checkbox" checked={productForm.showOnHomepage} onChange={(e) => setProductForm(c => ({...c, showOnHomepage: e.target.checked}))} />
-                      <div><p className="text-sm font-medium">Show on Homepage</p><p className="text-xs text-[#8B5E3C]">Display in featured sections</p></div>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
-                      <input type="checkbox" checked={productForm.isNewArrival} onChange={(e) => setProductForm(c => ({...c, isNewArrival: e.target.checked}))} />
-                      <div><p className="text-sm font-medium">New Arrival</p><p className="text-xs text-[#8B5E3C]">Show in New Arrivals section</p></div>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
-                      <input type="checkbox" checked={productForm.isBestSeller} onChange={(e) => setProductForm(c => ({...c, isBestSeller: e.target.checked}))} />
-                      <div><p className="text-sm font-medium">Best Seller</p><p className="text-xs text-[#8B5E3C]">Show in Best Sellers section</p></div>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-red-200 bg-red-50 cursor-pointer">
-                      <input type="checkbox" checked={productForm.isHidden} onChange={(e) => setProductForm(c => ({...c, isHidden: e.target.checked}))} />
-                      <div><p className="text-sm font-medium text-red-600">Hide Product</p><p className="text-xs text-red-400">Remove from all views</p></div>
-                    </label>
+                <input value={productForm.colors.map((c) => c.name).join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, colors: event.target.value.split(",").map((n, i) => ({ name: n.trim(), swatch: current.colors[i]?.swatch ?? colorSets[0][i % 3].swatch })).filter((c) => c.name) }))} placeholder="Color names (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input value={productForm.tags.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, tags: event.target.value.split(",").map((i) => i.trim()).filter(Boolean) }))} placeholder="Tags (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input value={productForm.badges.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, badges: event.target.value.split(",").map((i) => i.trim()).filter(Boolean) }))} placeholder="Badges (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                
+                <div className="sm:col-span-2 rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] p-4">
+                  <p className="mb-3 text-sm font-semibold text-[#1A1A1A]">Visibility Settings</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 text-sm text-[#5F4B3D]"><input type="checkbox" checked={productForm.visibility.active} onChange={(e) => setProductForm(c => ({ ...c, visibility: { ...c.visibility, active: e.target.checked } }))} /> Active / Show Product</label>
+                    <label className="flex items-center gap-2 text-sm text-[#5F4B3D]"><input type="checkbox" checked={productForm.visibility.homepage} onChange={(e) => setProductForm(c => ({ ...c, visibility: { ...c.visibility, homepage: e.target.checked } }))} /> Show on Homepage</label>
+                    <label className="flex items-center gap-2 text-sm text-[#5F4B3D]"><input type="checkbox" checked={productForm.visibility.newArrivals} onChange={(e) => setProductForm(c => ({ ...c, visibility: { ...c.visibility, newArrivals: e.target.checked } }))} /> Show in New Arrivals</label>
+                    <label className="flex items-center gap-2 text-sm text-[#5F4B3D]"><input type="checkbox" checked={productForm.visibility.featured} onChange={(e) => setProductForm(c => ({ ...c, visibility: { ...c.visibility, featured: e.target.checked } }))} /> Featured Product</label>
+                    <label className="flex items-center gap-2 text-sm text-[#5F4B3D]"><input type="checkbox" checked={productForm.visibility.bestSellers} onChange={(e) => setProductForm(c => ({ ...c, visibility: { ...c.visibility, bestSellers: e.target.checked } }))} /> Show in Best Sellers</label>
                   </div>
                 </div>
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
-                <PremiumButton onClick={handleSaveProduct}>Save Product</PremiumButton>
+                <PremiumButton onClick={() => setContent((current) => { const exists = current.products.some((p) => p.id === productForm.id); const next = exists ? current.products.map((p) => p.id === productForm.id ? productForm : p) : [productForm, ...current.products]; return { ...current, products: next }; })}>Save Product</PremiumButton>
                 <PremiumButton variant="secondary" onClick={() => setProductForm({ ...blankProduct, id: `product-${Date.now()}` })}>New Product</PremiumButton>
+                <PremiumButton variant="ghost" onClick={() => { if(window.confirm("Are you sure you want to delete this product?")) setContent((current) => ({ ...current, products: current.products.filter((p) => p.id !== productForm.id) })) }}>Delete Product</PremiumButton>
               </div>
             </div>
           </div>
@@ -1912,7 +1949,7 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><LayoutGrid className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner List</p><h3 className="font-display text-3xl text-[#1A1A1A]">All Banners</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Manage Banners</p><h3 className="font-display text-3xl text-[#1A1A1A]">Banner List</h3></div>
               </div>
               <div className="max-h-[780px] space-y-3 overflow-auto pr-1">
                 {content.banners.map((banner) => (
@@ -1926,7 +1963,7 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><ImagePlus className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Edit Banner</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Campaign CMS Form</h3></div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <input value={bannerForm.title} onChange={(event) => setBannerForm((current) => ({ ...current, title: event.target.value }))} placeholder="Banner Title" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
@@ -1936,7 +1973,7 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
                   {["All", "Women", "Kids", "Collections", "Wholesale", "Offers", "New Arrivals", "Best Sellers", "Festival Collection", "Wedding Collection", "Cotton Collection", "Trending Collection"].map((scope) => (<option key={scope}>{scope}</option>))}
                 </select>
                 <select value={bannerForm.placement} onChange={(event) => setBannerForm((current) => ({ ...current, placement: event.target.value as Banner["placement"] }))} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none">
-                  {["hero", "featured", "offer", "festival", "cotton", "trending", "wholesale"].map((placement) => (<option key={placement}>{placement}</option>))}
+                  {["hero", "featured", "offer", "festival", "cotton", "trending", "wholesale", "category"].map((placement) => (<option key={placement}>{placement}</option>))}
                 </select>
                 <input value={String(bannerForm.order)} onChange={(event) => setBannerForm((current) => ({ ...current, order: Number(event.target.value) }))} placeholder="Display Order" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
                 <input value={bannerForm.image} onChange={(event) => setBannerForm((current) => ({ ...current, image: event.target.value }))} placeholder="Banner Image URL" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
@@ -1953,25 +1990,109 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             </div>
           </div>
         )}
-      </div>
 
-      <AnimatePresence>
-        {deleteConfirm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/50 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-3xl p-8 max-w-sm w-full text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
-                <X className="h-8 w-8" />
-              </div>
-              <h3 className="font-display text-2xl text-[#1A1A1A] mb-2">Are you sure?</h3>
-              <p className="text-sm text-[#6D5A4B] mb-6">This action cannot be undone. The product will be permanently removed from your store.</p>
-              <div className="flex gap-3 justify-center">
-                <button onClick={() => setDeleteConfirm(null)} className="px-6 py-3 rounded-full border border-[#E7D9CD] text-[#6B3E26] font-semibold text-sm">Cancel</button>
-                <button onClick={handleDeleteProduct} className="px-6 py-3 rounded-full bg-red-600 text-white font-semibold text-sm">Delete Product</button>
-              </div>
-            </motion.div>
-          </motion.div>
+        {tab === "orders" && (
+          <div className="luxury-card rounded-[32px] p-6">
+            <h3 className="font-display text-3xl text-[#1A1A1A]">Order Management</h3>
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-[#EDE0D4] text-[#8B5E3C]">
+                  <tr>
+                    <th className="pb-3 pr-4">Order ID</th>
+                    <th className="pb-3 pr-4">Date</th>
+                    <th className="pb-3 pr-4">Customer</th>
+                    <th className="pb-3 pr-4">Items</th>
+                    <th className="pb-3 pr-4">Total</th>
+                    <th className="pb-3 pr-4">Payment</th>
+                    <th className="pb-3 pr-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[#5F4B3D]">
+                  {orders.length === 0 ? (
+                    <tr><td colSpan={7} className="py-8 text-center">No orders placed yet.</td></tr>
+                  ) : (
+                    orders.map((order) => (
+                      <tr key={order.id} className="border-b border-[#F3E7DC]">
+                        <td className="py-4 pr-4 font-medium text-[#1A1A1A]">{order.id}</td>
+                        <td className="py-4 pr-4">{order.date}</td>
+                        <td className="py-4 pr-4">{order.customer.name}<br /><span className="text-xs text-[#A49184]">{order.customer.phone}</span></td>
+                        <td className="py-4 pr-4">{order.items.map((i) => `${i.title} (x${i.quantity})`).join(", ")}</td>
+                        <td className="py-4 pr-4 font-semibold text-[#1A1A1A]">{formatCurrency(order.total)}</td>
+                        <td className="py-4 pr-4">{order.paymentMethod}</td>
+                        <td className="py-4 pr-4">
+                          <select 
+                            defaultValue={order.status}
+                            onChange={(e) => {
+                              const newOrders = [...orders];
+                              const idx = newOrders.findIndex(o => o.id === order.id);
+                              if(idx !== -1) {
+                                newOrders[idx].status = e.target.value as Order["status"];
+                                saveOrders(newOrders);
+                                // Force re-render is handled by parent state update ideally, but for localStorage we assume a refresh or better state management
+                                window.location.reload(); 
+                              }
+                            }}
+                            className="rounded-full border border-[#E7D9CD] bg-white px-2 py-1 text-xs"
+                          >
+                            <option>Pending</option>
+                            <option>Confirmed</option>
+                            <option>Shipped</option>
+                            <option>Delivered</option>
+                            <option>Cancelled</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+
+        {tab === "returns" && (
+          <div className="luxury-card rounded-[32px] p-6">
+            <h3 className="font-display text-3xl text-[#1A1A1A]">Return Requests</h3>
+            <div className="mt-6 space-y-4">
+              {returns.length === 0 ? (
+                <p className="py-8 text-center text-[#5F4B3D]">No return requests yet.</p>
+              ) : (
+                returns.map((ret) => (
+                  <div key={ret.id} className="rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-[#1A1A1A]">{ret.productTitle}</p>
+                        <p className="text-sm text-[#6D5A4B]">Order ID: {ret.orderId}</p>
+                      </div>
+                      <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", ret.status === "Pending" ? "bg-yellow-100 text-yellow-800" : ret.status === "Approved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}>
+                        {ret.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-[#5F4B3D]">Reason: {ret.reason}</p>
+                    {ret.notes && <p className="mt-1 text-sm text-[#5F4B3D]">Notes: {ret.notes}</p>}
+                    <div className="mt-3 flex gap-2">
+                      {ret.status === "Pending" && (
+                        <>
+                          <button type="button" onClick={() => {
+                            const newReturns = returns.map(r => r.id === ret.id ? { ...r, status: "Approved" as ReturnRequest["status"] } : r);
+                            saveReturns(newReturns);
+                            window.location.reload();
+                          }} className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Approve</button>
+                          <button type="button" onClick={() => {
+                            const newReturns = returns.map(r => r.id === ret.id ? { ...r, status: "Rejected" as ReturnRequest["status"] } : r);
+                            saveReturns(newReturns);
+                            window.location.reload();
+                          }} className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">Reject</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -2043,17 +2164,17 @@ function Footer({ onNavigate, onOpenScope }: { onNavigate: (page: Page) => void;
         <div className="grid gap-10 xl:grid-cols-[1.15fr_repeat(3,1fr)]">
           <div className="space-y-5">
             <LogoBlock compact />
-            <p className="max-w-sm text-sm leading-7 text-white/85">{BRAND} delivers a premium fashion ecommerce experience for women wear, kids wear, wholesale buyers, and family fashion discovery.</p>
+            <p className="max-w-sm text-sm leading-7 text-white/72">{BRAND} delivers a premium fashion ecommerce experience for women wear, kids wear, wholesale buyers, and family fashion discovery.</p>
             <div className="flex items-center gap-3">
-              <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><FacebookIcon className="h-4 w-4" /></a>
-              <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><InstagramIcon className="h-4 w-4" /></a>
-              <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><WhatsAppIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><FacebookIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><InstagramIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><WhatsAppIcon className="h-4 w-4" /></a>
             </div>
           </div>
           <FooterColumn title="Shop" links={[["Women", () => onOpenScope("Women")], ["Kids", () => onOpenScope("Kids")], ["New Arrivals", () => onOpenScope("New Arrivals")], ["Best Sellers", () => onOpenScope("Best Sellers")], ["Offers", () => onOpenScope("Offers")]]} />
-          <FooterColumn title="Customer" links={[["About", () => onNavigate("about")], ["Contact", () => onNavigate("contact")], ["Wholesale", () => onNavigate("wholesale")], ["Cart", () => onNavigate("cart")], ["Account", () => onNavigate("account")], ["Returns & Refunds", () => onNavigate("returns")]]} />
+          <FooterColumn title="Customer" links={[["About", () => onNavigate("about")], ["Contact", () => onNavigate("contact")], ["Wholesale", () => onNavigate("wholesale")], ["Returns", () => onNavigate("returns")], ["Return Policy", () => onNavigate("return-policy")]]} />
         </div>
-        <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs uppercase tracking-[0.24em] text-white/60 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs uppercase tracking-[0.24em] text-white/45 sm:flex-row sm:items-center sm:justify-between">
           <p>© {BRAND}. All Rights Reserved.</p>
           <p>Secure Payments • Easy Returns • Mobile First • OTP Login</p>
         </div>
@@ -2066,7 +2187,7 @@ function FooterColumn({ title, links }: { title: string; links: Array<[string, (
   return (
     <div>
       <h3 className="font-display text-3xl text-white">{title}</h3>
-      <div className="mt-4 space-y-3 text-sm text-white/85">
+      <div className="mt-4 space-y-3 text-sm text-white/72">
         {links.map(([label, action]) => <button type="button" key={label} onClick={action} className="block text-left transition hover:text-[#C89B6D]">{label}</button>)}
       </div>
     </div>
@@ -2111,17 +2232,35 @@ export default function App() {
   const [couponApplied, setCouponApplied] = useState(true);
   const pendingActionRef = useRef<null | (() => void)>(null);
   const [filters, setFilters] = useState<Filters>({ scope: "Collections", category: "All", size: "All", color: "All", price: 4999, sort: "Newest", newArrivals: false, bestSellers: false, offers: false });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
+  const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "", city: "", state: "", pincode: "", notes: "" });
 
   // --- Admin Auth Check & Routing ---
   useEffect(() => {
     const isAuth = sessionStorage.getItem(ADMIN_SESSION_KEY) === "true";
     setIsAdminAuth(isAuth);
     const path = window.location.pathname;
-    if (path === "/admin" || path.startsWith("/admin")) {
+    if (path === "/admin") {
       setActivePage("admin");
-      if (!isAuth) {
-        window.history.pushState({}, "", "/admin");
-      }
+    }
+  }, []);
+
+  // Load Orders & Returns
+  useEffect(() => {
+    setOrders(getOrders());
+    setReturns(getReturns());
+  }, []);
+
+  // Auth Persistence
+  useEffect(() => {
+    const authData = localStorage.getItem(AUTH_KEY);
+    if (authData) {
+      try {
+        const parsed = JSON.parse(authData);
+        setIsLoggedIn(true);
+        setCustomer(parsed);
+      } catch (e) {}
     }
   }, []);
 
@@ -2156,12 +2295,12 @@ export default function App() {
   const trendingBanner = useMemo(() => content.banners.find((b) => b.placement === "trending"), [content.banners]);
   const wholesaleBanner = useMemo(() => content.banners.find((b) => b.placement === "wholesale"), [content.banners]);
 
-  const womenProducts = useMemo(() => content.products.filter((p) => p.department === "Women" && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const kidsProducts = useMemo(() => content.products.filter((p) => p.department !== "Women" && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const festivalProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Festival Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const cottonProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Cotton Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const trendingProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Trending Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const bestSellers = useMemo(() => content.products.filter((p) => p.tags.includes("Best Sellers") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const womenProducts = useMemo(() => content.products.filter((p) => p.department === "Women" && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const kidsProducts = useMemo(() => content.products.filter((p) => p.department !== "Women" && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const festivalProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Festival Collection") && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const cottonProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Cotton Collection") && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const trendingProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Trending Collection") && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const bestSellers = useMemo(() => content.products.filter((p) => p.tags.includes("Best Sellers") && p.visibility.active).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
 
   const searchSuggestions = useMemo(() => {
     const base = ["Kurtis", "Sarees", "Cotton Collection", "Festival Collection", "Wedding Collection", "Kids Party Wear", "New Arrivals"];
@@ -2176,11 +2315,11 @@ export default function App() {
   }, [content.products, searchQuery]);
 
   const visibleProducts = useMemo(() => {
-    let list = [...content.products].filter((p) => !p.isHidden);
+    let list = [...content.products].filter(p => p.visibility.active);
     if (filters.scope === "Women") list = list.filter((p) => p.department === "Women");
     if (filters.scope === "Kids") list = list.filter((p) => p.department !== "Women");
-    if (filters.scope === "New Arrivals") list = list.filter((p) => p.tags.includes("New Arrivals"));
-    if (filters.scope === "Best Sellers") list = list.filter((p) => p.tags.includes("Best Sellers"));
+    if (filters.scope === "New Arrivals") list = list.filter((p) => p.tags.includes("New Arrivals") || p.visibility.newArrivals);
+    if (filters.scope === "Best Sellers") list = list.filter((p) => p.tags.includes("Best Sellers") || p.visibility.bestSellers);
     if (filters.scope === "Festival Collection") list = list.filter((p) => p.tags.includes("Festival Collection"));
     if (filters.scope === "Wedding Collection") list = list.filter((p) => p.tags.includes("Wedding Collection"));
     if (filters.scope === "Cotton Collection") list = list.filter((p) => p.tags.includes("Cotton Collection"));
@@ -2227,9 +2366,11 @@ export default function App() {
     action();
   }
 
-  function completeLogin() {
+  function completeLogin(method: "Mobile OTP" | "Google" | "Email", userData = customer) {
     setIsLoggedIn(true);
-    showToast("Login successful");
+    setCustomer(userData);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(userData));
+    showToast(`${method} login successful`);
     const pending = pendingActionRef.current;
     pendingActionRef.current = null;
     pending?.();
@@ -2294,6 +2435,121 @@ export default function App() {
     } else {
       setCouponApplied(false);
       showToast("Invalid coupon code");
+    }
+  }
+
+  async function handleOrderConfirmation(method: Order["paymentMethod"]) {
+    const newOrder: Order = {
+      id: `ORD-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      customer: customer,
+      items: cartDetailed.map(item => ({ title: item.product.title, quantity: item.quantity, price: item.product.price, size: item.size, color: item.color })),
+      total,
+      paymentMethod: method,
+      status: "Pending",
+      address: customer.address,
+      city: customer.city,
+      state: customer.state,
+      pincode: customer.pincode,
+      notes: customer.notes,
+    };
+
+    // 1. Save Order
+    const updatedOrders = [...orders, newOrder];
+    setOrders(updatedOrders);
+    saveOrders(updatedOrders);
+
+    // 2. Google Sheets Integration (Automatic)
+    // Note: In production, replace this URL with your Google Apps Script Web App URL
+    try {
+      const scriptUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
+      if (scriptUrl !== "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL") {
+        await fetch(scriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: newOrder.id,
+            date: newOrder.date,
+            name: newOrder.customer.name,
+            phone: newOrder.customer.phone,
+            email: newOrder.customer.email,
+            products: newOrder.items.map(i => `${i.title} (x${i.quantity})`).join(", "),
+            quantity: newOrder.items.reduce((sum, i) => sum + i.quantity, 0),
+            amount: newOrder.total,
+            payment: newOrder.paymentMethod,
+            address: `${newOrder.address}, ${newOrder.city}, ${newOrder.state}, ${newOrder.pincode}`,
+            status: newOrder.status,
+          }),
+        });
+      }
+    } catch (e) {
+      // Silent fail for demo
+    }
+
+    // 3. Email Notification (mailto)
+    const mailBody = `New Order Placed: ${newOrder.id}%0ACustomer: ${customer.name}%0APhone: ${customer.phone}%0ATotal: ₹${total}%0APayment: ${method}`;
+    window.open(`mailto:Yuvavishnu2426@gmail.com?subject=New Order ${newOrder.id}&body=${mailBody}`, "_blank");
+
+    // 4. WhatsApp Notification (wa.me)
+    const waBody = `*New Order Alert!*%0AOrder ID: ${newOrder.id}%0ACustomer: ${customer.name}%0APhone: ${customer.phone}%0AItems:%0A${cartDetailed.map(i => `- ${i.product.title} (${i.size}, ${i.color}) x${i.quantity}`).join("%0A")}%0ATotal: ₹${total}%0APayment: ${method}`;
+    window.open(`https://wa.me/${BUSINESS_PHONE}?text=${waBody}`, "_blank");
+
+    // 5. Clear Cart
+    setCart([]);
+    
+    // 6. Show Success
+    showToast("Order Placed Successfully! Redirecting to confirmation...");
+    setTimeout(() => {
+      alert(`✅ Order Placed!\n\nOrder ID: ${newOrder.id}\nTotal: ${formatCurrency(newOrder.total)}\nPayment: ${method}\n\nThank you for shopping with JEEV RUTHI COLLECTION.`);
+      navigate("home");
+    }, 1500);
+  }
+
+  function handleUPIPayment() {
+    // UPI Intent for Mobile
+    const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(BRAND)}&am=${total}&cu=INR&tn=Order-${Date.now()}`;
+    window.location.href = upiLink;
+    // Fallback for desktop / verification
+    setTimeout(() => {
+      if (window.confirm("Did you complete the UPI payment?")) {
+        handleOrderConfirmation("UPI");
+      }
+    }, 5000);
+  }
+
+  function handleRazorpayPayment() {
+    // Razorpay Integration
+    // Note: In production, replace 'rzp_test_...' with your live Key ID
+    const options = {
+      key: "rzp_test_1234567890", // Replace with actual Key ID
+      amount: total * 100,
+      currency: "INR",
+      name: BRAND,
+      description: "Premium Fashion Purchase",
+      handler: function (_response: any) {
+        handleOrderConfirmation("Razorpay");
+      },
+      prefill: {
+        name: customer.name,
+        email: customer.email,
+        contact: customer.phone,
+      },
+      theme: {
+        color: "#8B5E3C",
+      },
+    };
+    
+    // Check if Razorpay is loaded (requires script injection)
+    // For demo, we simulate success if script is not present
+    if (window.Razorpay) {
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } else {
+      // Simulation for environments without Razorpay script
+      if (window.confirm("Razorpay script not loaded. Simulate successful payment?")) {
+        handleOrderConfirmation("Razorpay");
+      }
     }
   }
 
@@ -2487,7 +2743,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <Header announcement={announcements[announcementIndex]} activePage={activePage} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} wishlistCount={wishlist.length} onNavigate={navigate} onOpenScope={openScope} onOpenSearch={() => setSearchOpen(true)} />
+      <Header announcement={announcements[announcementIndex]} activePage={activePage} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} wishlistCount={wishlist.length} onNavigate={navigate} onOpenScope={openScope} onOpenSearch={() => setSearchOpen(true)} isLoggedIn={isLoggedIn} />
 
       <AnimatePresence mode="wait">
         <motion.main key={activePage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
@@ -2496,13 +2752,27 @@ export default function App() {
             <ListingPage filters={filters} setFilters={setFilters} products={visibleProducts} allProducts={content.products} wishlist={wishlist} onOpenProduct={openProduct} onWishlist={toggleWishlist} onQuickView={setQuickView} onAddToCart={(product) => addToCart(product)} />
           )}
           {activePage === "product" && (
-            <ProductDetailPage product={selectedProduct} related={relatedProducts} recent={recentProducts} onBack={() => navigate("listing")} onAddToCart={(size, color, qty) => addToCart(selectedProduct, size, color, qty)} onBuyNow={(size, color, qty) => buyNow(selectedProduct, size, color, qty)} onWishlist={() => toggleWishlist(selectedProduct.id)} wishlisted={wishlist.includes(selectedProduct.id)} onOpenProduct={openProduct} onRequestReturn={() => navigate("returns")} />
+            <ProductDetailPage product={selectedProduct} related={relatedProducts} recent={recentProducts} onBack={() => navigate("listing")} onAddToCart={(size, color, qty) => addToCart(selectedProduct, size, color, qty)} onBuyNow={(size, color, qty) => buyNow(selectedProduct, size, color, qty)} onWishlist={() => toggleWishlist(selectedProduct.id)} wishlisted={wishlist.includes(selectedProduct.id)} onOpenProduct={openProduct} onReturn={(orderId) => { setCustomer(c => ({...c, notes: `Return for Order ${orderId}` })); navigate("returns"); }} />
           )}
           {activePage === "cart" && (
             <CartPage items={cartDetailed} coupon={coupon} setCoupon={setCoupon} discount={discount} subtotal={subtotal} shipping={shipping} total={total} onApplyCoupon={applyCoupon} onUpdateQty={(item, quantity) => setCart((current) => current.map((entry) => entry.productId === item.productId && entry.size === item.size && entry.color === item.color ? { ...entry, quantity } : entry))} onRemove={(item) => setCart((current) => current.filter((entry) => !(entry.productId === item.productId && entry.size === item.size && entry.color === item.color)))} onContinue={() => openScope("Collections")} onCheckout={() => requireAuth(() => navigate("checkout"), "Please login to proceed to checkout.")} />
           )}
           {activePage === "checkout" && (
-            <CheckoutPage isLoggedIn={isLoggedIn} items={cartDetailed} subtotal={subtotal} discount={discount} shipping={shipping} total={total} onRequireLogin={() => showToast("Please login to continue to checkout.")} onPay={() => showToast("Payment processing initiated.")} />
+            <CheckoutPage 
+              isLoggedIn={isLoggedIn} 
+              items={cartDetailed} 
+              subtotal={subtotal} 
+              discount={discount} 
+              shipping={shipping} 
+              total={total} 
+              onRequireLogin={() => showToast("Please login to continue to checkout.")} 
+              onPay={(method) => {
+                if (method === "COD") handleOrderConfirmation("COD");
+                else if (method === "UPI") handleUPIPayment();
+                else if (method === "Razorpay") handleRazorpayPayment();
+              }} 
+              customer={customer} 
+            />
           )}
           {activePage === "account" && (
             <AccountPage isLoggedIn={isLoggedIn} onLogin={completeLogin} wishlist={wishlistProducts} recentOrders={cartDetailed} onOpenProduct={openProduct} />
@@ -2510,10 +2780,11 @@ export default function App() {
           {activePage === "wholesale" && <WholesalePage />}
           {activePage === "about" && <AboutPage />}
           {activePage === "contact" && <ContactPage />}
-          {activePage === "returns" && <ReturnsPage onRequestReturn={() => { showToast("Return request submitted successfully!"); navigate("home"); }} />}
+          {activePage === "returns" && <ReturnRequestPage onSubmit={(req) => { saveReturns([...returns, req]); setReturns([...returns, req]); showToast("Return request submitted successfully!"); navigate("account"); }} />}
+          {activePage === "return-policy" && <ReturnPolicyPage />}
           {activePage === "admin" && (
             isAdminAuth ? (
-              <AdminDashboard content={content} setContent={setContent} onLogout={() => { setIsAdminAuth(false); sessionStorage.removeItem(ADMIN_SESSION_KEY); navigate("home"); }} />
+              <AdminDashboard content={content} setContent={setContent} onLogout={() => { setIsAdminAuth(false); sessionStorage.removeItem(ADMIN_SESSION_KEY); navigate("home"); }} orders={orders} returns={returns} />
             ) : (
               <AdminLoginPage onLogin={() => { setIsAdminAuth(true); sessionStorage.setItem(ADMIN_SESSION_KEY, "true"); }} />
             )
