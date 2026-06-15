@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gold" x1="10" y1="4" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF4BF"/>
+      <stop offset="0.35" stop-color="#E8C65A"/>
+      <stop offset="0.62" stop-color="#D4AF37"/>
+      <stop offset="1" stop-color="#9D6E11"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#111111"/>
+  <path d="M16 22L22 14L28 23L32 10L36 23L42 14L48 22L44 30H20L16 22Z" fill="url(#gold)" stroke="#F7DA80" stroke-width="1.6" stroke-linejoin="round"/>
+  <text x="32" y="48" text-anchor="middle" font-size="24" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="url(#gold)">JR</text>
+</svg>

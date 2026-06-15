@@ -1,0 +1,39 @@
+<svg width="520" height="340" viewBox="0 0 520 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="jrGold" x1="60" y1="40" x2="460" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF5C2"/>
+      <stop offset="0.2" stop-color="#F2D87A"/>
+      <stop offset="0.45" stop-color="#D4AF37"/>
+      <stop offset="0.7" stop-color="#A97718"/>
+      <stop offset="1" stop-color="#FFE8A3"/>
+    </linearGradient>
+    <linearGradient id="jrDarkGold" x1="130" y1="70" x2="390" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8D6110"/>
+      <stop offset="1" stop-color="#2A1703"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="520" height="340" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#A97718" flood-opacity="0.22"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <path d="M118 82L152 48L186 86L225 30L260 90L295 30L334 86L368 48L402 82L382 122H138L118 82Z" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M145 120C171 104 198 95 260 95C322 95 349 104 375 120" stroke="url(#jrDarkGold)" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="152" cy="48" r="9" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="3"/>
+    <circle cx="186" cy="86" r="7" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="3"/>
+    <circle cx="260" cy="28" r="8" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="3"/>
+    <circle cx="334" cy="86" r="7" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="3"/>
+    <circle cx="368" cy="48" r="9" fill="url(#jrGold)" stroke="url(#jrDarkGold)" stroke-width="3"/>
+    <path d="M165 120H355" stroke="url(#jrGold)" stroke-width="5" stroke-linecap="round"/>
+
+    <text x="260" y="205" text-anchor="middle" font-size="124" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="url(#jrGold)" letter-spacing="6">JR</text>
+    <path d="M154 226C183 210 205 204 260 204C315 204 337 210 366 226" stroke="url(#jrGold)" stroke-width="4" stroke-linecap="round"/>
+
+    <text x="260" y="270" text-anchor="middle" font-size="36" font-family="Georgia, 'Times New Roman', serif" letter-spacing="8" fill="url(#jrGold)">JEEV RUTHI</text>
+    <line x1="90" y1="292" x2="196" y2="292" stroke="url(#jrGold)" stroke-width="2.6" stroke-linecap="round"/>
+    <line x1="324" y1="292" x2="430" y2="292" stroke="url(#jrGold)" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M254 286L260 292L266 286L260 280L254 286Z" fill="url(#jrGold)"/>
+    <text x="260" y="316" text-anchor="middle" font-size="20" font-family="Georgia, 'Times New Roman', serif" letter-spacing="7" fill="url(#jrGold)">COLLECTIONS</text>
+  </g>
+</svg>
