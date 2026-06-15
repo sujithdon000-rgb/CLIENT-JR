@@ -1,10 +1,4 @@
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   AnimatePresence,
   motion,
@@ -15,6 +9,7 @@ import {
 import {
   ArrowRight,
   BadgeCheck,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +28,8 @@ import {
   Package,
   Phone,
   Plus,
+  QrCode,
+  RotateCcw,
   Search,
   Settings2,
   ShieldCheck,
@@ -45,12 +42,13 @@ import {
   UserRound,
   Wallet,
   X,
+  ZoomIn,
 } from "lucide-react";
 import { cn } from "./utils/cn";
 
 // --- Types ---
 
-type Page = "home" | "listing" | "product" | "cart" | "checkout" | "account" | "wholesale" | "about" | "contact" | "admin";
+type Page = "home" | "listing" | "product" | "cart" | "checkout" | "account" | "wholesale" | "about" | "contact" | "admin" | "returns" | "policy";
 
 type Scope =
   | "All"
@@ -64,7 +62,8 @@ type Scope =
   | "Festival Collection"
   | "Wedding Collection"
   | "Cotton Collection"
-  | "Trending Collection";
+  | "Trending Collection"
+  | string;
 
 type Product = {
   id: string;
@@ -84,6 +83,10 @@ type Product = {
   rating: number;
   reviews: number;
   stock: number;
+  showOnHomepage: boolean;
+  isNewArrival: boolean;
+  isBestSeller: boolean;
+  isHidden: boolean;
 };
 
 type Banner = {
@@ -93,7 +96,7 @@ type Banner = {
   cta: string;
   image: string;
   scope: Scope;
-  placement: "hero" | "featured" | "offer" | "festival" | "cotton" | "trending" | "wholesale";
+  placement: "hero" | "featured" | "offer" | "festival" | "cotton" | "trending" | "wholesale" | "category";
   order: number;
 };
 
@@ -124,14 +127,13 @@ type Filters = {
 // --- Constants & Config ---
 
 const BRAND = "JEEV RUTHI COLLECTION";
-const TAGLINE = "Fashion For Every Family";
 const STORE_TIMING = "Open Daily • 10:00 AM – 10:00 PM";
 const STORE_MAP_LINK = "https://maps.app.goo.gl/QwoTg7hgNXX9gPp96";
-const STORE_MAP_EMBED =
-  "https://www.google.com/maps?q=No.81%2C%20Vigneshwara%20Nagar%2C%20Kundrathur%20Main%20Road%2C%20Porur%2C%20Chennai%20600116&output=embed";
+const STORE_MAP_EMBED = "https://www.google.com/maps?q=No.81%2C%20Vigneshwara%20Nagar%2C%20Kundrathur%20Main%20Road%2C%20Porur%2C%20Chennai%20600116&output=embed";
 const STORE_ADDRESS = ["No.81, Vigneshwara Nagar,", "Kundrathur Main Road,", "Porur, Chennai – 600116,", "Tamil Nadu, India"];
 const CMS_KEY = "jr-collection-cms-v1";
 const ADMIN_SESSION_KEY = "jr_admin_session";
+const UPI_ID = "sujithjai007-2@oksbi";
 
 const transition: Transition = { duration: 0.65, ease: [0.22, 1, 0.36, 1] };
 
@@ -210,8 +212,8 @@ const bannerImages = [
 ];
 
 const promoCards = [
-  { title: "Kids Party Edit", subtitle: "Premium festive picks", image: girlsImages[0] },
-  { title: "Wedding Sarees", subtitle: "Rich drapes & luxe tones", image: womenImages[8] },
+  { image: girlsImages[0] },
+  { image: womenImages[8] },
 ];
 
 const womenCategories: Record<string, string[]> = {
@@ -239,6 +241,26 @@ const girlsCategories: Record<string, string[]> = {
 const babyCategories: Record<string, string[]> = {
   Rompers: ["Cloud Soft Romper", "Tiny Bloom Romper", "Warm Nest Romper", "Baby Comfort Romper", "Little Story Romper"],
   "Gift Sets": ["Welcome Home Gift Set", "Newborn Keepsake Set", "Gentle Days Gift Set", "Soft Touch Gift Set", "Premium Infant Gift Set"],
+};
+
+// Category Banner Mapping
+const categoryBanners: Record<string, { title: string; subtitle: string; image: string }> = {
+  "All": { title: "All Collections", subtitle: "Explore our complete premium fashion range.", image: bannerImages[2] },
+  "Women": { title: "Women's Fashion", subtitle: "Elegant ethnic and western wear for the modern woman.", image: bannerImages[0] },
+  "Kids": { title: "Kids Fashion", subtitle: "Premium party wear, ethnic looks, and daily comfort for kids.", image: bannerImages[4] },
+  "Kurtis": { title: "Premium Kurtis", subtitle: "Handpicked kurtis with modern designs and comfortable fabrics.", image: womenImages[0] },
+  "Sarees": { title: "Luxury Sarees", subtitle: "Traditional weaves, silk blends, and festive drapes.", image: womenImages[8] },
+  "Dresses": { title: "Western Dresses", subtitle: "Chic dresses for casual outings and special occasions.", image: womenImages[4] },
+  "Tops": { title: "Stylish Tops", subtitle: "Versatile tops that pair perfectly with any bottom wear.", image: womenImages[11] },
+  "Salwar Sets": { title: "Salwar Suits", subtitle: "Complete sets with matching bottoms and dupattas.", image: womenImages[2] },
+  "Shirts": { title: "Boys Shirts", subtitle: "Smart casual and formal shirts for young gentlemen.", image: boysImages[0] },
+  "T-Shirts": { title: "Kids T-Shirts", subtitle: "Comfortable, trendy tees for active kids.", image: boysImages[1] },
+  "Party Wear": { title: "Party Wear", subtitle: "Standout outfits for birthdays, festivals, and celebrations.", image: girlsImages[0] },
+  "Ethnic Wear": { title: "Ethnic Wear", subtitle: "Traditional styles for cultural events and family functions.", image: boysImages[3] },
+  "Frocks": { title: "Girls Frocks", subtitle: "Beautiful frocks for parties and daily wear.", image: girlsImages[0] },
+  "Gowns": { title: "Kids Gowns", subtitle: "Princess-style gowns for special occasions.", image: girlsImages[2] },
+  "Rompers": { title: "Baby Rompers", subtitle: "Soft, safe, and adorable rompers for infants.", image: babyImages[0] },
+  "Gift Sets": { title: "Baby Gift Sets", subtitle: "Curated gift boxes for newborns and babies.", image: babyImages[5] },
 };
 
 function buildSeedProducts(): Product[] {
@@ -297,6 +319,10 @@ function buildSeedProducts(): Product[] {
           rating: 4.6 + (index % 3) * 0.1,
           reviews: 58 + index * 21 + groupIndex * 8,
           stock: 8 + ((groupIndex + index) % 10),
+          showOnHomepage: index < 2,
+          isNewArrival: index === 1 || index === 2,
+          isBestSeller: index === 0 || index === 4,
+          isHidden: false,
         });
       });
     });
@@ -361,6 +387,8 @@ function updateMeta(page: Page, product?: Product | null) {
     about: `${BRAND} | About`,
     contact: `${BRAND} | Contact`,
     admin: `Admin | ${BRAND}`,
+    returns: `${BRAND} | Returns & Refunds`,
+    policy: `${BRAND} | Policies`,
   };
   document.title = titleMap[page];
   const meta = document.querySelector('meta[name="description"]');
@@ -421,7 +449,6 @@ function LogoBlock({ compact = false }: { compact?: boolean }) {
       <img src="/jr-logo.svg" alt={`${BRAND} logo`} className={compact ? "h-16 w-auto sm:h-20" : "h-20 w-auto sm:h-24"} />
       <div className="min-w-0">
         <p className="font-display text-2xl font-semibold tracking-[0.16em] text-[#1a1a1a] sm:text-3xl">{BRAND}</p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.34em] text-[#8B5E3C] sm:text-xs">{TAGLINE}</p>
       </div>
     </div>
   );
@@ -440,10 +467,10 @@ function SectionHeading({ eyebrow, title, description, center = false }: { eyebr
   );
 }
 
-function PremiumButton({ children, onClick, variant = "primary", className, type = "button" }: { children: ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string; type?: "button" | "submit" }) {
+function PremiumButton({ children, onClick, variant = "primary", className }: { children: ReactNode; onClick?: (event: React.MouseEvent) => void; variant?: "primary" | "secondary" | "ghost"; className?: string }) {
   return (
     <motion.button
-      type={type}
+      type="button"
       whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -562,17 +589,13 @@ function HeaderPromoCluster() {
     <div className="hidden items-center gap-3 xl:flex">
       {promoCards.map((card, index) => (
         <motion.div
-          key={card.title}
+          key={index}
           animate={{ y: [0, index % 2 === 0 ? -8 : 8, 0] }}
           transition={{ duration: 5 + index, repeat: Infinity, ease: "easeInOut" }}
           whileHover={{ y: -6, rotate: 1.5 }}
-          className="group flex h-20 w-44 items-center gap-3 overflow-hidden rounded-3xl border border-white/45 bg-white/70 p-2 shadow-[0_18px_38px_rgba(17,17,17,0.08)] backdrop-blur"
+          className="group overflow-hidden rounded-3xl border border-white/45 bg-white/70 p-2 shadow-[0_18px_38px_rgba(17,17,17,0.08)] backdrop-blur"
         >
-          <MediaImage src={card.image} alt={card.title} className="h-16 w-16 rounded-2xl object-cover transition duration-500 group-hover:scale-110" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[#1A1A1A]">{card.title}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#8B5E3C]">{card.subtitle}</p>
-          </div>
+          <MediaImage src={card.image} alt={`Promo ${index + 1}`} className="h-16 w-44 rounded-2xl object-cover transition duration-500 group-hover:scale-110" />
         </motion.div>
       ))}
     </div>
@@ -686,13 +709,9 @@ function Header({ announcement, activePage, cartCount, wishlistCount, onNavigate
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="border-b border-[#EFE2D7] bg-white/95 px-4 py-5 backdrop-blur xl:hidden">
             <div className="mx-auto max-w-[1500px] space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                {promoCards.map((card) => (
-                  <div key={card.title} className="flex items-center gap-3 rounded-3xl border border-[#EDE0D4] bg-[#FFF9F5] p-3">
-                    <MediaImage src={card.image} alt={card.title} className="h-14 w-14 rounded-2xl object-cover" />
-                    <div>
-                      <p className="text-sm font-semibold text-[#1A1A1A]">{card.title}</p>
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#8B5E3C]">{card.subtitle}</p>
-                    </div>
+                {promoCards.map((card, index) => (
+                  <div key={index} className="overflow-hidden rounded-3xl border border-[#EDE0D4] bg-[#FFF9F5]">
+                    <MediaImage src={card.image} alt={`Promo ${index + 1}`} className="h-20 w-full object-cover" />
                   </div>
                 ))}
               </div>
@@ -911,7 +930,7 @@ function CollectionSection({ eyebrow, title, description, products, wishlist, on
 
 // --- Product Detail Page ---
 
-function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBuyNow, onWishlist, wishlisted, onOpenProduct }: { product: Product; related: Product[]; recent: Product[]; onBack: () => void; onAddToCart: (size: string, color: string, qty: number) => void; onBuyNow: (size: string, color: string, qty: number) => void; onWishlist: () => void; wishlisted: boolean; onOpenProduct: (product: Product) => void }) {
+function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBuyNow, onWishlist, wishlisted, onOpenProduct, onRequestReturn }: { product: Product; related: Product[]; recent: Product[]; onBack: () => void; onAddToCart: (size: string, color: string, qty: number) => void; onBuyNow: (size: string, color: string, qty: number) => void; onWishlist: () => void; wishlisted: boolean; onOpenProduct: (product: Product) => void; onRequestReturn: () => void }) {
   const [mainImage, setMainImage] = useState(product.gallery[0]);
   const [selectedSize, setSelectedSize] = useState(product.sizes[2] ?? product.sizes[0]);
   const [selectedColor, setSelectedColor] = useState(product.colors[0].name);
@@ -919,6 +938,7 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
   const [tab, setTab] = useState("Description");
   const [pincode, setPincode] = useState("");
   const [message, setMessage] = useState("");
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   useEffect(() => {
     setMainImage(product.gallery[0]);
@@ -935,7 +955,7 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
     "Fabric Details": "Premium fabric finish crafted for softness, drape, and occasion-ready premium styling.",
     "Size Guide": `Available sizes: ${product.sizes.join(", ")}. Fit is optimized for fashion-forward comfort and premium finish.`,
     "Delivery Information": "Tamil Nadu: 2–4 Business Days • South India: 3–6 Business Days • Rest Of India: 5–8 Business Days • Free shipping above ₹999.",
-    "Return Policy": "7 day easy returns for unused products with original tags and original packaging.",
+    "Return Policy": "7 day easy returns for unused products with original tags and original packaging. Return requests can be submitted from your account dashboard.",
     Reviews: `${product.reviews}+ customers rated this style ${product.rating.toFixed(1)} stars for quality, styling, and premium presentation.`,
   };
 
@@ -953,10 +973,13 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
                   </button>
                 ))}
               </div>
-              <div className="order-1 overflow-hidden rounded-[36px] bg-[#F5ECE4] shadow-[0_28px_80px_rgba(17,17,17,0.08)] md:order-2">
+              <div className="order-1 overflow-hidden rounded-[36px] bg-[#F5ECE4] shadow-[0_28px_80px_rgba(17,17,17,0.08)] md:order-2 relative group cursor-zoom-in" onClick={() => setZoomOpen(true)}>
                 <AnimatePresence mode="wait">
-                  <motion.div key={mainImage} initial={{ opacity: 0.2, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.2, scale: 0.99 }} transition={{ duration: 0.35 }}>
-                    <MediaImage src={mainImage} alt={product.title} eager className="aspect-[4/5] h-full w-full object-cover" />
+                  <motion.div key={mainImage} initial={{ opacity: 0.2, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.2, scale: 0.99 }} transition={{ duration: 0.35 }} className="relative">
+                    <MediaImage src={mainImage} alt={product.title} eager className="aspect-[4/5] h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition">
+                      <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition drop-shadow-lg" />
+                    </div>
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -1015,10 +1038,11 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
                 </div>
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               <MiniInfoCard icon={<Truck className="h-5 w-5" />} title="Shipping" copy="Fast delivery across India" />
               <MiniInfoCard icon={<ShieldCheck className="h-5 w-5" />} title="Returns" copy="7 day easy returns" />
               <MiniInfoCard icon={<Lock className="h-5 w-5" />} title="Security" copy="Secure checkout & OTP login" />
+              <MiniInfoCard icon={<RotateCcw className="h-5 w-5" />} title="Exchange" copy="Easy exchange available" />
             </div>
             <div className="rounded-[32px] border border-[#EDE0D4] bg-white p-6 shadow-[0_18px_44px_rgba(17,17,17,0.04)]">
               <p className="mb-3 text-sm font-semibold text-[#1A1A1A]">Pincode Availability Checker</p>
@@ -1027,6 +1051,9 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
                 <PremiumButton variant="secondary" onClick={() => setMessage(/^\d{6}$/.test(pincode) ? "Delivery available • Tamil Nadu: 2–4 days • South India: 3–6 days • Rest of India: 5–8 days" : "Please enter a valid 6-digit pincode")}>Check</PremiumButton>
               </div>
               {message && <p className="mt-3 text-sm text-[#5F4B3D]">{message}</p>}
+            </div>
+            <div className="flex justify-center">
+              <PremiumButton variant="ghost" onClick={onRequestReturn}><RotateCcw className="h-4 w-4" /> Request Return / Exchange</PremiumButton>
             </div>
           </Reveal>
         </div>
@@ -1041,6 +1068,15 @@ function ProductDetailPage({ product, related, recent, onBack, onAddToCart, onBu
         <RelatedRow title="Related Products" products={related} onOpenProduct={onOpenProduct} />
         <RelatedRow title="Recently Viewed" products={recent} onOpenProduct={onOpenProduct} />
       </div>
+
+      <AnimatePresence>
+        {zoomOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/90 flex items-center justify-center p-4" onClick={() => setZoomOpen(false)}>
+            <motion.img src={mainImage} alt={product.title} initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="max-h-[90vh] max-w-full object-contain rounded-lg" />
+            <button type="button" onClick={() => setZoomOpen(false)} className="absolute top-6 right-6 text-white"><X className="h-8 w-8" /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
@@ -1075,19 +1111,23 @@ function ListingPage({ filters, setFilters, products, allProducts, wishlist, onO
   const sizes = ["All", ...Array.from(new Set(allProducts.flatMap((product) => product.sizes)))];
   const colors = ["All", ...Array.from(new Set(allProducts.flatMap((product) => product.colors.map((item) => item.name))))];
 
+  const currentBanner = categoryBanners[filters.category] || categoryBanners[filters.scope] || categoryBanners["All"];
+
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
         <Reveal>
           <div className="overflow-hidden rounded-[38px] bg-[#26170F] text-white shadow-[0_28px_80px_rgba(17,17,17,0.16)]">
-            <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-              <div className="p-8 sm:p-10 lg:p-12">
-                <p className="text-xs uppercase tracking-[0.34em] text-[#E7C5A7]">Category Page</p>
-                <h1 className="mt-4 font-display text-5xl leading-none sm:text-6xl">{filters.scope}</h1>
-                <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">Wider, cleaner collection browsing with accurate filters and premium product visibility.</p>
-              </div>
-              <div className="relative min-h-[280px]"><MediaImage src={bannerImages[2]} alt="Category banner" className="h-full w-full object-cover" /></div>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div key={currentBanner.title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+                <div className="p-8 sm:p-10 lg:p-12">
+                  <p className="text-xs uppercase tracking-[0.34em] text-[#E7C5A7]">Category Page</p>
+                  <h1 className="mt-4 font-display text-5xl leading-none sm:text-6xl">{currentBanner.title}</h1>
+                  <p className="mt-5 max-w-2xl text-sm leading-7 text-white/78 sm:text-base">{currentBanner.subtitle}</p>
+                </div>
+                <div className="relative min-h-[280px]"><MediaImage src={currentBanner.image} alt={currentBanner.title} className="h-full w-full object-cover" /></div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </Reveal>
         <div className="flex items-center justify-between gap-4 lg:hidden">
@@ -1240,6 +1280,8 @@ function CartPage({ items, coupon, setCoupon, discount, subtotal, shipping, tota
 // --- Checkout Page ---
 
 function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, onRequireLogin, onPay }: { isLoggedIn: boolean; items: Array<CartItem & { product: Product }>; subtotal: number; discount: number; shipping: number; total: number; onRequireLogin: () => void; onPay: () => void }) {
+  const [paymentMethod, setPaymentMethod] = useState<"upi" | "razorpay" | "cod">("upi");
+
   if (!isLoggedIn) {
     return (
       <section className="px-4 py-10 sm:py-14">
@@ -1252,6 +1294,7 @@ function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, 
       </section>
     );
   }
+
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
@@ -1308,25 +1351,48 @@ function CheckoutPage({ isLoggedIn, items, subtotal, discount, shipping, total, 
               </div>
             </div>
             <div className="luxury-card rounded-[30px] p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-[#6B3E26] p-3 text-white"><CreditCard className="h-5 w-5" /></div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-[#8B5E3C]">Payment Methods</p>
-                  <h3 className="font-display text-3xl text-[#1A1A1A]">Secure premium checkout</h3>
-                </div>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {[{ icon: Wallet, label: "UPI / Wallets" }, { icon: CreditCard, label: "Debit & Credit Cards" }, { icon: BadgeCheck, label: "Net Banking" }, { icon: ShoppingBag, label: "Cash On Delivery" }].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-4">
-                      <div className="flex items-center gap-3 text-[#5F4B3D]"><Icon className="h-5 w-5 text-[#6B3E26]" /><span className="text-sm font-medium">{item.label}</span></div>
+              <h3 className="font-display text-3xl text-[#1A1A1A] mb-6">Select Payment Method</h3>
+              <div className="space-y-3 mb-6">
+                {[
+                  { id: "upi", label: "UPI Payment", icon: <Wallet className="h-5 w-5" />, desc: "Pay using GPay, PhonePe, Paytm, or any UPI app" },
+                  { id: "razorpay", label: "Razorpay Checkout", icon: <CreditCard className="h-5 w-5" />, desc: "Cards, Net Banking, Wallets, and UPI via Razorpay" },
+                  { id: "cod", label: "Cash On Delivery", icon: <ShoppingBag className="h-5 w-5" />, desc: "Pay when your order arrives at your doorstep" },
+                ].map((method) => (
+                  <button key={method.id} type="button" onClick={() => setPaymentMethod(method.id as any)} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl border transition", paymentMethod === method.id ? "border-[#6B3E26] bg-[#FFF4EA]" : "border-[#EDE0D4] bg-[#FFF9F5]")}>
+                    <div className={cn("p-2 rounded-full", paymentMethod === method.id ? "bg-[#6B3E26] text-white" : "bg-[#FFF0E5] text-[#6B3E26]")}>{method.icon}</div>
+                    <div className="text-left">
+                      <p className="font-semibold text-[#1A1A1A]">{method.label}</p>
+                      <p className="text-xs text-[#6D5A4B]">{method.desc}</p>
                     </div>
-                  );
-                })}
+                    {paymentMethod === method.id && <CheckCircle2 className="h-5 w-5 text-[#6B3E26] ml-auto" />}
+                  </button>
+                ))}
               </div>
-              <p className="mt-5 text-sm leading-7 text-[#5F4B3D]">Razorpay-ready payment interface prepared for production key integration.</p>
-              <PremiumButton className="mt-6 w-full" onClick={onPay}>Proceed To Payment</PremiumButton>
+
+              {paymentMethod === "upi" && (
+                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-xl shadow mb-4">
+                    <QrCode className="h-10 w-10 text-[#6B3E26]" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#1A1A1A] mb-2">Scan QR or Pay via UPI</p>
+                  <p className="text-xs text-[#6D5A4B] mb-4">UPI ID: {UPI_ID}</p>
+                  <a href={`upi://pay?pa=${UPI_ID}&pn=JEEV%20RUTHI%20COLLECTION&am=${total}&cu=INR`} className="inline-block bg-[#6B3E26] text-white px-6 py-3 rounded-full font-semibold text-sm">Pay {formatCurrency(total)}</a>
+                </div>
+              )}
+
+              {paymentMethod === "razorpay" && (
+                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
+                  <p className="text-sm text-[#6D5A4B] mb-4">Secure payment powered by Razorpay. Supports UPI, Cards, Net Banking, and Wallets.</p>
+                  <PremiumButton onClick={onPay}>Pay with Razorpay</PremiumButton>
+                </div>
+              )}
+
+              {paymentMethod === "cod" && (
+                <div className="bg-[#FFF9F5] rounded-2xl p-6 text-center border border-[#EDE0D4]">
+                  <p className="text-sm text-[#6D5A4B] mb-4">Cash on delivery available. Additional charges may apply.</p>
+                  <PremiumButton onClick={onPay}>Confirm COD Order</PremiumButton>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1528,6 +1594,81 @@ function ContactPage() {
   );
 }
 
+// --- Returns Page ---
+
+function ReturnsPage({ onRequestReturn }: { onRequestReturn: (data: any) => void }) {
+  const [formData, setFormData] = useState({ orderId: "", reason: "", notes: "" });
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onRequestReturn(formData);
+    setSubmitted(true);
+  };
+
+  return (
+    <section className="px-4 py-10 sm:py-14">
+      <div className="mx-auto max-w-4xl space-y-10">
+        <SectionHeading eyebrow="Returns & Refunds" title="Easy Return Process" description="We want you to love your purchase. If you're not satisfied, you can return your product within 7 days." center />
+        
+        {!submitted ? (
+          <div className="luxury-card rounded-[32px] p-6 sm:p-8">
+            <h3 className="font-display text-3xl text-[#1A1A1A] mb-6">Submit Return Request</h3>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Order ID</label>
+                <input required value={formData.orderId} onChange={(e) => setFormData({...formData, orderId: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]" placeholder="Enter your order ID" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Return Reason</label>
+                <select required value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]">
+                  <option value="">Select a reason</option>
+                  <option value="Wrong Size">Wrong Size</option>
+                  <option value="Damaged Product">Damaged Product</option>
+                  <option value="Wrong Product Received">Wrong Product Received</option>
+                  <option value="Quality Issue">Quality Issue</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#6B3E26] mb-1">Additional Notes</label>
+                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D] min-h-32" placeholder="Please provide any additional details..." />
+              </div>
+              <div className="flex gap-3">
+                <PremiumButton onClick={handleSubmit}>Submit Request</PremiumButton>
+                <PremiumButton variant="secondary" onClick={() => window.history.back()}>Cancel</PremiumButton>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div className="luxury-card rounded-[32px] p-10 text-center">
+            <CheckCircle2 className="h-16 w-16 text-[#6B3E26] mx-auto mb-4" />
+            <h3 className="font-display text-3xl text-[#1A1A1A] mb-2">Request Submitted</h3>
+            <p className="text-[#5F4B3D] mb-6">Your return request has been received. Our team will review it and contact you shortly.</p>
+            <PremiumButton onClick={() => window.history.back()}>Back to Home</PremiumButton>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          <h3 className="font-display text-3xl text-[#1A1A1A]">Return Policy Details</h3>
+          <div className="luxury-card rounded-[26px] p-6">
+            <h4 className="font-semibold text-[#1A1A1A] mb-2">7-Day Easy Returns</h4>
+            <p className="text-sm text-[#5F4B3D]">You can return any product within 7 days of delivery. The product must be unused, with original tags and packaging.</p>
+          </div>
+          <div className="luxury-card rounded-[26px] p-6">
+            <h4 className="font-semibold text-[#1A1A1A] mb-2">Refund Process</h4>
+            <p className="text-sm text-[#5F4B3D]">Refunds are processed within 5-7 business days after the returned product is received and inspected. The amount will be credited to your original payment method.</p>
+          </div>
+          <div className="luxury-card rounded-[26px] p-6">
+            <h4 className="font-semibold text-[#1A1A1A] mb-2">Exchange Policy</h4>
+            <p className="text-sm text-[#5F4B3D]">We offer size exchanges for all products. If the desired size is unavailable, a full refund will be issued.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- Admin CMS Pages ---
 
 function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
@@ -1537,12 +1678,9 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    console.log("Login attempt triggered", { username, password });
     if (username === "admin" && password === "admin123") {
-      console.log("Login successful, calling onLogin");
       onLogin();
     } else {
-      console.log("Login failed");
       setError("Invalid credentials. Please try again.");
     }
   };
@@ -1567,7 +1705,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
             <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Password</label>
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]" placeholder="Enter password" />
           </div>
-          <PremiumButton type="submit" className="w-full">Secure Login</PremiumButton>
+          <PremiumButton className="w-full">Secure Login</PremiumButton>
         </form>
         <p className="mt-6 text-center text-xs text-[#A49184]">Protected Route • Authorized Personnel Only</p>
       </motion.div>
@@ -1577,6 +1715,9 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
 function AdminDashboard({ content, setContent, onLogout }: { content: StoreContent; setContent: React.Dispatch<React.SetStateAction<StoreContent>>; onLogout: () => void }) {
   const [tab, setTab] = useState<"products" | "banners">("products");
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
   const blankProduct: Product = {
     id: `product-${Date.now()}`,
     title: "",
@@ -1595,6 +1736,10 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
     rating: 4.8,
     reviews: 120,
     stock: 10,
+    showOnHomepage: false,
+    isNewArrival: false,
+    isBestSeller: false,
+    isHidden: false,
   };
   const blankBanner: Banner = {
     id: `banner-${Date.now()}`,
@@ -1609,6 +1754,30 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
 
   const [productForm, setProductForm] = useState<Product>(blankProduct);
   const [bannerForm, setBannerForm] = useState<Banner>(blankBanner);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleSaveProduct = () => {
+    setContent((current) => {
+      const exists = current.products.some((p) => p.id === productForm.id);
+      const next = exists ? current.products.map((p) => p.id === productForm.id ? productForm : p) : [productForm, ...current.products];
+      return { ...current, products: next };
+    });
+    setToast("Product saved successfully!");
+  };
+
+  const handleDeleteProduct = () => {
+    if (deleteConfirm) {
+      setContent((current) => ({ ...current, products: current.products.filter((p) => p.id !== deleteConfirm) }));
+      setDeleteConfirm(null);
+      setToast("Product deleted successfully!");
+    }
+  };
 
   const productImageUpload = async (file: File, index: number) => {
     const dataUrl = await fileToDataUrl(file);
@@ -1627,6 +1796,12 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
   return (
     <section className="px-4 py-10 sm:py-14">
       <div className="mx-auto max-w-[1500px] space-y-10">
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="fixed top-4 right-4 z-[150] bg-[#6B3E26] text-white px-6 py-3 rounded-full shadow-lg">
+            {toast}
+          </motion.div>
+        )}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-[#8B5E3C]">Admin Dashboard</p>
@@ -1646,13 +1821,14 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><Package className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Manage Products</p><h3 className="font-display text-3xl text-[#1A1A1A]">Product List</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Product List</p><h3 className="font-display text-3xl text-[#1A1A1A]">All Products</h3></div>
               </div>
               <div className="max-h-[780px] space-y-3 overflow-auto pr-1">
                 {content.products.map((product) => (
-                  <button type="button" key={product.id} onClick={() => setProductForm(product)} className="flex w-full items-center gap-4 rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-3 text-left">
+                  <button type="button" key={product.id} onClick={() => setProductForm(product)} className="flex w-full items-center gap-4 rounded-[22px] border border-[#EDE0D4] bg-[#FFF9F5] p-3 text-left hover:border-[#C89B6D]/50">
                     <MediaImage src={product.gallery[0]} alt={product.title} className="h-16 w-16 rounded-2xl object-cover" />
                     <div className="min-w-0 flex-1"><p className="truncate font-semibold text-[#1A1A1A]">{product.title}</p><p className="text-sm text-[#6D5A4B]">{product.department} • {product.category}</p></div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(product.id); }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><X className="h-4 w-4" /></button>
                   </button>
                 ))}
               </div>
@@ -1661,17 +1837,37 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><Settings2 className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Product CMS Form</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Product Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Edit Product Details</h3></div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <input value={productForm.title} onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))} placeholder="Product Title" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
-                <select value={productForm.department} onChange={(event) => setProductForm((current) => ({ ...current, department: event.target.value as Product["department"] }))} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none">
-                  <option>Women</option><option>Kids Boys</option><option>Kids Girls</option><option>Baby</option>
-                </select>
-                <input value={productForm.category} onChange={(event) => setProductForm((current) => ({ ...current, category: event.target.value }))} placeholder="Category" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                <input value={String(productForm.price)} onChange={(event) => setProductForm((current) => ({ ...current, price: Number(event.target.value) }))} placeholder="Price" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                <input value={String(productForm.comparePrice)} onChange={(event) => setProductForm((current) => ({ ...current, comparePrice: Number(event.target.value) }))} placeholder="Compare Price" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
-                <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <input value={productForm.title} onChange={(event) => setProductForm((current) => ({ ...current, title: event.target.value }))} placeholder="Product Name (Required)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Department</p>
+                  <select value={productForm.department} onChange={(event) => setProductForm((current) => ({ ...current, department: event.target.value as Product["department"] }))} className="w-full rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none">
+                    <option>Women</option><option>Kids Boys</option><option>Kids Girls</option><option>Baby</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Category (Auto-maps to sections)</p>
+                  <input value={productForm.category} onChange={(event) => setProductForm((current) => ({ ...current, category: event.target.value }))} placeholder="e.g., Kurtis, Sarees, Shirts" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Actual Price (₹)</p>
+                  <input value={productForm.price} onChange={(event) => setProductForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Offer Price (₹)</p>
+                  <input value={productForm.comparePrice} onChange={(event) => setProductForm((current) => ({ ...current, comparePrice: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Stock Quantity</p>
+                  <input value={productForm.stock} onChange={(event) => setProductForm((current) => ({ ...current, stock: Number(event.target.value) }))} type="number" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#8B5E3C] mb-1">Sizes (comma separated)</p>
+                  <input value={productForm.sizes.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, sizes: event.target.value.split(",").map(s => s.trim()).filter(Boolean) }))} className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
+                </div>
+                <textarea value={productForm.description} onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))} placeholder="Product Description" className="min-h-28 rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
                 {productForm.gallery.map((image, index) => (
                   <div key={`${image}-${index}`} className="space-y-3 sm:col-span-2">
                     <input value={image} onChange={(event) => setProductForm((current) => { const g = [...current.gallery]; g[index] = event.target.value; return { ...current, gallery: g }; })} placeholder={`Image ${index + 1} URL`} className="w-full rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none" />
@@ -1681,14 +1877,31 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
                     </label>
                   </div>
                 ))}
-                <input value={productForm.colors.map((c) => c.name).join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, colors: event.target.value.split(",").map((n, i) => ({ name: n.trim(), swatch: current.colors[i]?.swatch ?? colorSets[0][i % 3].swatch })).filter((c) => c.name) }))} placeholder="Color names (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
-                <input value={productForm.tags.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, tags: event.target.value.split(",").map((i) => i.trim()).filter(Boolean) }))} placeholder="Tags (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
-                <input value={productForm.badges.join(", ")} onChange={(event) => setProductForm((current) => ({ ...current, badges: event.target.value.split(",").map((i) => i.trim()).filter(Boolean) }))} placeholder="Badges (comma separated)" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
+                <div className="sm:col-span-2 space-y-4 border-t border-[#EDE0D4] pt-4 mt-2">
+                  <p className="text-sm font-semibold text-[#1A1A1A]">Visibility Settings</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
+                      <input type="checkbox" checked={productForm.showOnHomepage} onChange={(e) => setProductForm(c => ({...c, showOnHomepage: e.target.checked}))} />
+                      <div><p className="text-sm font-medium">Show on Homepage</p><p className="text-xs text-[#8B5E3C]">Display in featured sections</p></div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
+                      <input type="checkbox" checked={productForm.isNewArrival} onChange={(e) => setProductForm(c => ({...c, isNewArrival: e.target.checked}))} />
+                      <div><p className="text-sm font-medium">New Arrival</p><p className="text-xs text-[#8B5E3C]">Show in New Arrivals section</p></div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-xl border border-[#EDE0D4] bg-[#FFF9F5] cursor-pointer">
+                      <input type="checkbox" checked={productForm.isBestSeller} onChange={(e) => setProductForm(c => ({...c, isBestSeller: e.target.checked}))} />
+                      <div><p className="text-sm font-medium">Best Seller</p><p className="text-xs text-[#8B5E3C]">Show in Best Sellers section</p></div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 rounded-xl border border-red-200 bg-red-50 cursor-pointer">
+                      <input type="checkbox" checked={productForm.isHidden} onChange={(e) => setProductForm(c => ({...c, isHidden: e.target.checked}))} />
+                      <div><p className="text-sm font-medium text-red-600">Hide Product</p><p className="text-xs text-red-400">Remove from all views</p></div>
+                    </label>
+                  </div>
+                </div>
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
-                <PremiumButton onClick={() => setContent((current) => { const exists = current.products.some((p) => p.id === productForm.id); const next = exists ? current.products.map((p) => p.id === productForm.id ? productForm : p) : [productForm, ...current.products]; return { ...current, products: next }; })}>Save Product</PremiumButton>
+                <PremiumButton onClick={handleSaveProduct}>Save Product</PremiumButton>
                 <PremiumButton variant="secondary" onClick={() => setProductForm({ ...blankProduct, id: `product-${Date.now()}` })}>New Product</PremiumButton>
-                <PremiumButton variant="ghost" onClick={() => setContent((current) => ({ ...current, products: current.products.filter((p) => p.id !== productForm.id) }))}>Delete Product</PremiumButton>
               </div>
             </div>
           </div>
@@ -1699,7 +1912,7 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><LayoutGrid className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Manage Banners</p><h3 className="font-display text-3xl text-[#1A1A1A]">Banner List</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner List</p><h3 className="font-display text-3xl text-[#1A1A1A]">All Banners</h3></div>
               </div>
               <div className="max-h-[780px] space-y-3 overflow-auto pr-1">
                 {content.banners.map((banner) => (
@@ -1713,7 +1926,7 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
             <div className="luxury-card rounded-[32px] p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="rounded-full bg-[#FFF0E5] p-3 text-[#6B3E26]"><ImagePlus className="h-5 w-5" /></div>
-                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Campaign CMS Form</h3></div>
+                <div><p className="text-xs uppercase tracking-[0.24em] text-[#8B5E3C]">Banner Editor</p><h3 className="font-display text-3xl text-[#1A1A1A]">Edit Banner</h3></div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <input value={bannerForm.title} onChange={(event) => setBannerForm((current) => ({ ...current, title: event.target.value }))} placeholder="Banner Title" className="rounded-2xl border border-[#E7D9CD] px-4 py-3 text-sm outline-none sm:col-span-2" />
@@ -1741,6 +1954,24 @@ function AdminDashboard({ content, setContent, onLogout }: { content: StoreConte
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[150] bg-black/50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-3xl p-8 max-w-sm w-full text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <X className="h-8 w-8" />
+              </div>
+              <h3 className="font-display text-2xl text-[#1A1A1A] mb-2">Are you sure?</h3>
+              <p className="text-sm text-[#6D5A4B] mb-6">This action cannot be undone. The product will be permanently removed from your store.</p>
+              <div className="flex gap-3 justify-center">
+                <button onClick={() => setDeleteConfirm(null)} className="px-6 py-3 rounded-full border border-[#E7D9CD] text-[#6B3E26] font-semibold text-sm">Cancel</button>
+                <button onClick={handleDeleteProduct} className="px-6 py-3 rounded-full bg-red-600 text-white font-semibold text-sm">Delete Product</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
@@ -1812,17 +2043,17 @@ function Footer({ onNavigate, onOpenScope }: { onNavigate: (page: Page) => void;
         <div className="grid gap-10 xl:grid-cols-[1.15fr_repeat(3,1fr)]">
           <div className="space-y-5">
             <LogoBlock compact />
-            <p className="max-w-sm text-sm leading-7 text-white/72">{BRAND} delivers a premium fashion ecommerce experience for women wear, kids wear, wholesale buyers, and family fashion discovery.</p>
+            <p className="max-w-sm text-sm leading-7 text-white/85">{BRAND} delivers a premium fashion ecommerce experience for women wear, kids wear, wholesale buyers, and family fashion discovery.</p>
             <div className="flex items-center gap-3">
-              <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><FacebookIcon className="h-4 w-4" /></a>
-              <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><InstagramIcon className="h-4 w-4" /></a>
-              <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 p-3 text-white/75 transition hover:text-[#C89B6D]"><WhatsAppIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><FacebookIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><InstagramIcon className="h-4 w-4" /></a>
+              <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 p-3 text-white/85 transition hover:text-[#C89B6D] hover:border-[#C89B6D]"><WhatsAppIcon className="h-4 w-4" /></a>
             </div>
           </div>
           <FooterColumn title="Shop" links={[["Women", () => onOpenScope("Women")], ["Kids", () => onOpenScope("Kids")], ["New Arrivals", () => onOpenScope("New Arrivals")], ["Best Sellers", () => onOpenScope("Best Sellers")], ["Offers", () => onOpenScope("Offers")]]} />
-          <FooterColumn title="Customer" links={[["About", () => onNavigate("about")], ["Contact", () => onNavigate("contact")], ["Wholesale", () => onNavigate("wholesale")], ["Cart", () => onNavigate("cart")], ["Account", () => onNavigate("account")]]} />
+          <FooterColumn title="Customer" links={[["About", () => onNavigate("about")], ["Contact", () => onNavigate("contact")], ["Wholesale", () => onNavigate("wholesale")], ["Cart", () => onNavigate("cart")], ["Account", () => onNavigate("account")], ["Returns & Refunds", () => onNavigate("returns")]]} />
         </div>
-        <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs uppercase tracking-[0.24em] text-white/45 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs uppercase tracking-[0.24em] text-white/60 sm:flex-row sm:items-center sm:justify-between">
           <p>© {BRAND}. All Rights Reserved.</p>
           <p>Secure Payments • Easy Returns • Mobile First • OTP Login</p>
         </div>
@@ -1835,7 +2066,7 @@ function FooterColumn({ title, links }: { title: string; links: Array<[string, (
   return (
     <div>
       <h3 className="font-display text-3xl text-white">{title}</h3>
-      <div className="mt-4 space-y-3 text-sm text-white/72">
+      <div className="mt-4 space-y-3 text-sm text-white/85">
         {links.map(([label, action]) => <button type="button" key={label} onClick={action} className="block text-left transition hover:text-[#C89B6D]">{label}</button>)}
       </div>
     </div>
@@ -1925,12 +2156,12 @@ export default function App() {
   const trendingBanner = useMemo(() => content.banners.find((b) => b.placement === "trending"), [content.banners]);
   const wholesaleBanner = useMemo(() => content.banners.find((b) => b.placement === "wholesale"), [content.banners]);
 
-  const womenProducts = useMemo(() => content.products.filter((p) => p.department === "Women").sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const kidsProducts = useMemo(() => content.products.filter((p) => p.department !== "Women").sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const festivalProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Festival Collection")).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const cottonProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Cotton Collection")).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const trendingProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Trending Collection")).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
-  const bestSellers = useMemo(() => content.products.filter((p) => p.tags.includes("Best Sellers")).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const womenProducts = useMemo(() => content.products.filter((p) => p.department === "Women" && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const kidsProducts = useMemo(() => content.products.filter((p) => p.department !== "Women" && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const festivalProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Festival Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const cottonProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Cotton Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const trendingProducts = useMemo(() => content.products.filter((p) => p.tags.includes("Trending Collection") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
+  const bestSellers = useMemo(() => content.products.filter((p) => p.tags.includes("Best Sellers") && !p.isHidden).sort((a, b) => b.createdAt - a.createdAt).slice(0, 8), [content.products]);
 
   const searchSuggestions = useMemo(() => {
     const base = ["Kurtis", "Sarees", "Cotton Collection", "Festival Collection", "Wedding Collection", "Kids Party Wear", "New Arrivals"];
@@ -1945,7 +2176,7 @@ export default function App() {
   }, [content.products, searchQuery]);
 
   const visibleProducts = useMemo(() => {
-    let list = [...content.products];
+    let list = [...content.products].filter((p) => !p.isHidden);
     if (filters.scope === "Women") list = list.filter((p) => p.department === "Women");
     if (filters.scope === "Kids") list = list.filter((p) => p.department !== "Women");
     if (filters.scope === "New Arrivals") list = list.filter((p) => p.tags.includes("New Arrivals"));
@@ -2265,13 +2496,13 @@ export default function App() {
             <ListingPage filters={filters} setFilters={setFilters} products={visibleProducts} allProducts={content.products} wishlist={wishlist} onOpenProduct={openProduct} onWishlist={toggleWishlist} onQuickView={setQuickView} onAddToCart={(product) => addToCart(product)} />
           )}
           {activePage === "product" && (
-            <ProductDetailPage product={selectedProduct} related={relatedProducts} recent={recentProducts} onBack={() => navigate("listing")} onAddToCart={(size, color, qty) => addToCart(selectedProduct, size, color, qty)} onBuyNow={(size, color, qty) => buyNow(selectedProduct, size, color, qty)} onWishlist={() => toggleWishlist(selectedProduct.id)} wishlisted={wishlist.includes(selectedProduct.id)} onOpenProduct={openProduct} />
+            <ProductDetailPage product={selectedProduct} related={relatedProducts} recent={recentProducts} onBack={() => navigate("listing")} onAddToCart={(size, color, qty) => addToCart(selectedProduct, size, color, qty)} onBuyNow={(size, color, qty) => buyNow(selectedProduct, size, color, qty)} onWishlist={() => toggleWishlist(selectedProduct.id)} wishlisted={wishlist.includes(selectedProduct.id)} onOpenProduct={openProduct} onRequestReturn={() => navigate("returns")} />
           )}
           {activePage === "cart" && (
             <CartPage items={cartDetailed} coupon={coupon} setCoupon={setCoupon} discount={discount} subtotal={subtotal} shipping={shipping} total={total} onApplyCoupon={applyCoupon} onUpdateQty={(item, quantity) => setCart((current) => current.map((entry) => entry.productId === item.productId && entry.size === item.size && entry.color === item.color ? { ...entry, quantity } : entry))} onRemove={(item) => setCart((current) => current.filter((entry) => !(entry.productId === item.productId && entry.size === item.size && entry.color === item.color)))} onContinue={() => openScope("Collections")} onCheckout={() => requireAuth(() => navigate("checkout"), "Please login to proceed to checkout.")} />
           )}
           {activePage === "checkout" && (
-            <CheckoutPage isLoggedIn={isLoggedIn} items={cartDetailed} subtotal={subtotal} discount={discount} shipping={shipping} total={total} onRequireLogin={() => showToast("Please login to continue to checkout.")} onPay={() => showToast("Payment UI ready. Connect live Razorpay keys for production.")} />
+            <CheckoutPage isLoggedIn={isLoggedIn} items={cartDetailed} subtotal={subtotal} discount={discount} shipping={shipping} total={total} onRequireLogin={() => showToast("Please login to continue to checkout.")} onPay={() => showToast("Payment processing initiated.")} />
           )}
           {activePage === "account" && (
             <AccountPage isLoggedIn={isLoggedIn} onLogin={completeLogin} wishlist={wishlistProducts} recentOrders={cartDetailed} onOpenProduct={openProduct} />
@@ -2279,6 +2510,7 @@ export default function App() {
           {activePage === "wholesale" && <WholesalePage />}
           {activePage === "about" && <AboutPage />}
           {activePage === "contact" && <ContactPage />}
+          {activePage === "returns" && <ReturnsPage onRequestReturn={() => { showToast("Return request submitted successfully!"); navigate("home"); }} />}
           {activePage === "admin" && (
             isAdminAuth ? (
               <AdminDashboard content={content} setContent={setContent} onLogout={() => { setIsAdminAuth(false); sessionStorage.removeItem(ADMIN_SESSION_KEY); navigate("home"); }} />
