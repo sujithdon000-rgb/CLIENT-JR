@@ -440,10 +440,10 @@ function SectionHeading({ eyebrow, title, description, center = false }: { eyebr
   );
 }
 
-function PremiumButton({ children, onClick, variant = "primary", className }: { children: ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string }) {
+function PremiumButton({ children, onClick, variant = "primary", className, type = "button" }: { children: ReactNode; onClick?: () => void; variant?: "primary" | "secondary" | "ghost"; className?: string; type?: "button" | "submit" }) {
   return (
     <motion.button
-      type="button"
+      type={type}
       whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -1537,9 +1537,12 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    console.log("Login attempt triggered", { username, password });
     if (username === "admin" && password === "admin123") {
+      console.log("Login successful, calling onLogin");
       onLogin();
     } else {
+      console.log("Login failed");
       setError("Invalid credentials. Please try again.");
     }
   };
@@ -1564,7 +1567,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
             <label className="mb-1 block text-sm font-medium text-[#6B3E26]">Password</label>
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required className="w-full rounded-xl border border-[#E7D9CD] bg-[#FFF9F5] px-4 py-3 text-sm outline-none focus:border-[#C89B6D]" placeholder="Enter password" />
           </div>
-          <PremiumButton className="w-full">Secure Login</PremiumButton>
+          <PremiumButton type="submit" className="w-full">Secure Login</PremiumButton>
         </form>
         <p className="mt-6 text-center text-xs text-[#A49184]">Protected Route • Authorized Personnel Only</p>
       </motion.div>
