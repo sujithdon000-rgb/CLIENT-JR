@@ -11,6 +11,7 @@ declare global {
     Razorpay: any;
   }
 }
+
 import {
   AnimatePresence,
   motion,
